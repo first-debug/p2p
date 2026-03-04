@@ -9,6 +9,7 @@ import (
 
 	"main/internal/config"
 	updexplorer "main/internal/explorer/UPDExplorer"
+	tuimanager "main/internal/manager/TuiManager"
 	pb "main/internal/proto"
 	"main/internal/server/websocket"
 	peerstorage "main/internal/storage/peer-storage/memory"
@@ -42,8 +43,17 @@ func main() {
 		return
 	}
 
-	stop := make(chan any)
+	manager, err := tuimanager.NewTuiManager(explorer, pStorage, sStorage)
+	if err != nil {
+		log.Printf("%v", err)
+	}
 
+	managerErr := make(chan error, 1)
+	go func() {
+		managerErr <- manager.Run()
+	}()
+
+	stop := make(chan any)
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
@@ -57,10 +67,14 @@ func main() {
 			}
 		}
 	}()
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 	select {
+	case err := <-managerErr:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		s.Stop(ctx)
+		log.Printf("manager stop status: %v", err)
 	case err := <-serverErr:
 		log.Printf("failed to serve: %v", err)
 	case sig := <-sigs:
