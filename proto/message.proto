@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "./pb";
+
+import "google/protobuf/timestamp.proto";
+
+message Message {
+  google.protobuf.Timestamp send_time = 1;
+  string message = 2;
+}
+
+message Peer {
+	bytes id = 1;
+	int32 port = 2;
+	map<string, string> files = 3;
+}
+
+message KnownPeers {
+  repeated Peer known_peers = 1;
+}
