@@ -1,7 +1,7 @@
 package peerstorage
 
 import (
-	"main/internal/domain"
+	"github.com/first-debug/p2p/internal/domain"
 )
 
 type PeerStorage interface {

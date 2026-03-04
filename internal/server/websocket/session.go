@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"main/internal/domain"
-	pb "main/internal/proto"
-	"main/internal/session"
+	"github.com/first-debug/p2p/internal/domain"
+	pb "github.com/first-debug/p2p/internal/proto"
+	"github.com/first-debug/p2p/internal/session"
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"

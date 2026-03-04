@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"main/internal/session"
-	sessionstorage "main/internal/storage/session-storage"
+	"github.com/first-debug/p2p/internal/session"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
 
 	"github.com/google/uuid"
 )

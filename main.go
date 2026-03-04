@@ -7,13 +7,13 @@ import (
 	"os/signal"
 	"time"
 
-	"main/internal/config"
-	updexplorer "main/internal/explorer/UPDExplorer"
-	tuimanager "main/internal/manager/TuiManager"
-	pb "main/internal/proto"
-	"main/internal/server/websocket"
-	peerstorage "main/internal/storage/peer-storage/memory"
-	sessionstorage "main/internal/storage/session-storage/memory"
+	"github.com/first-debug/p2p/internal/config"
+	updexplorer "github.com/first-debug/p2p/internal/explorer/UPDExplorer"
+	tuimanager "github.com/first-debug/p2p/internal/manager/TuiManager"
+	pb "github.com/first-debug/p2p/internal/proto"
+	"github.com/first-debug/p2p/internal/server/websocket"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage/memory"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage/memory"
 
 	"github.com/google/uuid"
 )

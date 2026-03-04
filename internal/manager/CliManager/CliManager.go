@@ -1,8 +1,8 @@
 package climanager
 
 import (
-	"main/internal/explorer"
-	"main/internal/server"
+	"github.com/first-debug/p2p/internal/explorer"
+	"github.com/first-debug/p2p/internal/server"
 )
 
 type CliManager struct {

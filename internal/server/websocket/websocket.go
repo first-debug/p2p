@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"main/internal/server"
-	peerstorage "main/internal/storage/peer-storage"
-	sessionstorage "main/internal/storage/session-storage"
+	"github.com/first-debug/p2p/internal/server"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
 
 	"github.com/coder/websocket"
 )

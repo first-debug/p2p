@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"main/internal/domain"
-	peerstorage "main/internal/storage/peer-storage"
+	"github.com/first-debug/p2p/internal/domain"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
 )
 
 type MemoryPeerStorage struct {

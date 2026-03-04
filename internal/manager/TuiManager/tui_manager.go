@@ -18,11 +18,11 @@ import (
 	"sync"
 	"time"
 
-	"main/internal/domain"
-	"main/internal/explorer"
-	"main/internal/session"
-	peerstorage "main/internal/storage/peer-storage"
-	sessionstorage "main/internal/storage/session-storage"
+	"github.com/first-debug/p2p/internal/domain"
+	"github.com/first-debug/p2p/internal/explorer"
+	"github.com/first-debug/p2p/internal/session"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -176,13 +176,13 @@ func (m *TuiManager) initUIComponents() {
 	// tview.List - это виджет списка с возможностью выбора элементов
 	// Каждый элемент имеет основной текст (peer name) и вспомогательный (IP:port)
 	m.peerList = tview.NewList()
-	m.peerList.ShowSecondaryText(true) // Показывать вторичный текст (адрес пира)
-	m.peerList.SetHighlightFullLine(true) // Подсвечивать всю строку при выборе
-	m.peerList.SetSelectedBackgroundColor(tcell.ColorDarkBlue) // Цвет выделения
-	m.peerList.SetSelectedTextColor(tcell.ColorWhite) // Цвет текста выделения
+	m.peerList.ShowSecondaryText(true)                                       // Показывать вторичный текст (адрес пира)
+	m.peerList.SetHighlightFullLine(true)                                    // Подсвечивать всю строку при выборе
+	m.peerList.SetSelectedBackgroundColor(tcell.ColorDarkBlue)               // Цвет выделения
+	m.peerList.SetSelectedTextColor(tcell.ColorWhite)                        // Цвет текста выделения
 	m.peerList.SetTitle("Обнаруженные пиры [yellow](C) - подключить[white]") // Заголовок списка
-	m.peerList.SetBorder(true) // Рисовать рамку вокруг списка
-	m.peerList.SetBorderPadding(1, 1, 1, 1) // Отступы внутри рамки
+	m.peerList.SetBorder(true)                                               // Рисовать рамку вокруг списка
+	m.peerList.SetBorderPadding(1, 1, 1, 1)                                  // Отступы внутри рамки
 
 	// Обработчик выбора элемента в списке пиров
 	// Вызывается при клике или нажатии Enter на элементе
@@ -215,7 +215,7 @@ func (m *TuiManager) initUIComponents() {
 	// TextView - виджет для отображения текста
 	// Используется для показа текущего статуса приложения
 	m.statusText = tview.NewTextView()
-	m.statusText.SetDynamicColors(true) // Включить поддержку цветов в тексте
+	m.statusText.SetDynamicColors(true)                    // Включить поддержку цветов в тексте
 	m.statusText.SetText("[green]Статус:[white] Ожидание") // Начальный текст с цветом
 	m.statusText.SetTitle("Статус")
 	m.statusText.SetBorder(true)
@@ -310,7 +310,7 @@ func (m *TuiManager) setupLayout() {
 	// Страница "connect" - форма подключения
 	m.pages = tview.NewPages()
 	m.pages.AddPage("main", mainVerticalLayout, true, true)
-	m.pages.AddPage("modal", m.modalForm, true, false)    // Скрыта по умолчанию
+	m.pages.AddPage("modal", m.modalForm, true, false)     // Скрыта по умолчанию
 	m.pages.AddPage("connect", m.connectForm, true, false) // Скрыта по умолчанию
 
 	// Устанавливаем корневой виджет приложения
@@ -812,16 +812,16 @@ func (m *TuiManager) showHelp() {
 	// Создаем модальное окно со списком горячих клавиш
 	help := tview.NewModal()
 	help.SetText(
-		"Горячие клавиши:\n\n"+
-			"Q - Выход из приложения\n"+
-			"R - Обновить списки\n"+
-			"C - Подключиться к пиру\n"+
-			"D - Отключить сессию\n"+
-			"I - Показать информацию\n"+
-			"H - Эта справка\n\n"+
-			"Навигация:\n"+
-			"Tab - Переключение между панелями\n"+
-			"Стрелки - Выбор элемента\n"+
+		"Горячие клавиши:\n\n" +
+			"Q - Выход из приложения\n" +
+			"R - Обновить списки\n" +
+			"C - Подключиться к пиру\n" +
+			"D - Отключить сессию\n" +
+			"I - Показать информацию\n" +
+			"H - Эта справка\n\n" +
+			"Навигация:\n" +
+			"Tab - Переключение между панелями\n" +
+			"Стрелки - Выбор элемента\n" +
 			"Escape - Закрыть форму/модальное окно",
 	)
 	help.AddButtons([]string{"OK"})
