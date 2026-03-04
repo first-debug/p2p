@@ -1,6 +1,6 @@
 package pb
 
-import "main/internal/domain"
+import "github.com/first-debug/p2p/internal/domain"
 
 func PbPeerToDomain(p *Peer) domain.Peer {
 	return domain.Peer{

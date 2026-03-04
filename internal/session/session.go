@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"main/internal/domain"
-	pb "main/internal/proto"
+	"github.com/first-debug/p2p/internal/domain"
+	pb "github.com/first-debug/p2p/internal/proto"
 
 	"github.com/google/uuid"
 )

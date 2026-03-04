@@ -3,7 +3,7 @@ package sessionstorage
 import (
 	"context"
 
-	"main/internal/session"
+	"github.com/first-debug/p2p/internal/session"
 
 	"github.com/google/uuid"
 )

@@ -1,4 +1,4 @@
-module main
+module github.com/first-debug/p2p
 
 go 1.25.0
 

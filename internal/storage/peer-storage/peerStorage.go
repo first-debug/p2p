@@ -1,8 +1,6 @@
 package peerstorage
 
-import (
-	"main/internal/domain"
-)
+import "github.com/first-debug/p2p/internal/domain"
 
 type PeerStorage interface {
 	Add(domain.Peer) error

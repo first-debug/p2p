@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	"main/internal/config"
-	"main/internal/explorer"
-	pb "main/internal/proto"
-	peerstorage "main/internal/storage/peer-storage"
+	"github.com/first-debug/p2p/internal/config"
+	"github.com/first-debug/p2p/internal/explorer"
+	pb "github.com/first-debug/p2p/internal/proto"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
 
 	"google.golang.org/protobuf/proto"
 )
