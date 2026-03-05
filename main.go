@@ -24,7 +24,7 @@ func main() {
 
 	pStorage := peerstorage.NewMemoryPeerStorage()
 	sStorage := sessionstorage.NewMemorySessionStorage()
-	s := websocket.NewWebSocketServer(cfg.WebSocketPort, sStorage)
+	s := websocket.NewWebSocketServer(cfg.WebSocketPort, sStorage, pStorage)
 
 	serverErr := make(chan error, 1)
 	go func() {
