@@ -23,8 +23,8 @@ type BaseSession struct {
 type Session interface {
 	GetID() uuid.UUID
 	IsIncoming() bool
-	GetReadChannel(context.Context) (chan *pb.Message, error)
-	GetWriteChannel(context.Context) (chan *pb.Message, error)
+	GetReadChannel(context.Context) (*chan *pb.Message, error)
+	GetWriteChannel(context.Context) (*chan *pb.Message, error)
 	Close(context.Context)
 	IsOpen() bool
 }
