@@ -7,9 +7,10 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/config"
 	updexplorer "github.com/first-debug/p2p/internal/explorer/UPDExplorer"
-	tuimanager "github.com/first-debug/p2p/internal/manager/TuiManager"
+	tuimanager "github.com/first-debug/p2p/internal/manager/tui"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage/memory"
@@ -21,6 +22,7 @@ import (
 func main() {
 	cfg := config.MustLoad()
 
+	pStorage := peerstorage.NewMemoryPeerStorage()
 	sStorage := sessionstorage.NewMemorySessionStorage()
 	s := websocket.NewWebSocketServer(cfg.WebSocketPort, sStorage)
 
@@ -29,7 +31,6 @@ func main() {
 		serverErr <- s.Serve()
 	}()
 
-	pStorage := peerstorage.NewMemoryPeerStorage()
 	explorer, err := updexplorer.NewUDPExplorer(cfg, &pb.Peer{
 		Id:   []byte(uuid.New().String()),
 		Port: int32(cfg.WebSocketPort),
@@ -43,7 +44,7 @@ func main() {
 		return
 	}
 
-	manager, err := tuimanager.NewTuiManager(explorer, pStorage, sStorage)
+	manager, err := tuimanager.NewTuiManager(explorer, pStorage, sStorage, client.NewWebSocketClient(sStorage))
 	if err != nil {
 		log.Printf("%v", err)
 	}
