@@ -35,11 +35,12 @@ type WebSocketServer struct {
 	isStopping atomic.Bool
 }
 
-func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage) server.Server {
+func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage, peerStorage peerstorage.PeerStorage) server.Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &WebSocketServer{
 		port:            port,
 		sessionsStorage: sessionsStorage,
+		peerStorage:     peerStorage,
 		ctx:             ctx,
 		ctxCancel:       cancel,
 		wg:              &sync.WaitGroup{},

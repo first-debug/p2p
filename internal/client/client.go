@@ -1,11 +1,12 @@
 package client
 
-import "context"
+import (
+	"context"
+
+	"github.com/first-debug/p2p/internal/domain"
+	"github.com/first-debug/p2p/internal/session"
+)
 
 type Client interface {
-	Connect(context.Context, string) (Client, error)
-	Close(context.Context)
-	Read(context.Context) ([]byte, error)
-	Write(context.Context, []byte) error
-	IsOpen() bool
+	Connect(context.Context, *domain.Peer) (session.Session, error)
 }

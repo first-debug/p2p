@@ -1,4 +1,4 @@
-package websocket
+package client
 
 import (
 	"context"
@@ -9,9 +9,8 @@ import (
 	"github.com/first-debug/p2p/internal/domain"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/session"
-
-	"github.com/coder/websocket"
 	"github.com/google/uuid"
+	"golang.org/x/net/websocket"
 	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,7 +30,6 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 		connection:  conn,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 10),
 		readChan:    make(chan *pb.Message, 20),
-		writeChan:   make(chan *pb.Message, 20),
 	}
 	ws.ID = uuid.New()
 	ws.Peer = peer
@@ -80,27 +78,28 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 
 			msg := &pb.Message{}
 
-			// err := s.rateLimiter.Wait(ctx)
-			// if err != nil {
-			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", err)
-			// 	return
-			// }
-
-			logger.Print("befor read")
-			typ, data, err := s.connection.Read(ctx)
-			logger.Print("after read")
+			err := s.rateLimiter.Wait(ctx)
 			if err != nil {
 				s.closeWithError(err)
 				logger.Printf("%v", err)
 				return
 			}
-			if typ != websocket.MessageBinary {
-				errMsg := "unsupported message type"
+
+			var data []byte
+
+			fmt.Println(s)
+			_, err = s.connection.Read(data)
+			if err != nil {
 				s.closeWithError(err)
-				logger.Printf("%v", errMsg)
+				logger.Printf("%v", err)
 				return
 			}
+			// if typ != websocket.MessageBinary {
+			// 	errMsg := "unsupported message type"
+			// 	s.closeWithError(err)
+			// 	logger.Printf("%v", errMsg)
+			// 	return
+			// }
 
 			if err := proto.Unmarshal(data, msg); err != nil {
 				logger.Printf("%e", err)
@@ -129,12 +128,12 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 			ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 			defer cancel()
 
-			// err := s.rateLimiter.Wait(ctx)
-			// if err != nil {
-			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", err)
-			// 	return
-			// }
+			err := s.rateLimiter.Wait(ctx)
+			if err != nil {
+				s.closeWithError(err)
+				logger.Printf("%v", err)
+				return
+			}
 
 			data, err := proto.Marshal(msg)
 			if err != nil {
@@ -143,7 +142,9 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 				return
 			}
 
-			err = s.connection.Write(ctx, websocket.MessageBinary, data)
+			logger.Print("befor write")
+			_, err = s.connection.Write(data)
+			logger.Print("after write")
 			if err != nil {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
@@ -155,7 +156,7 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 
 func (s *WebSocketSession) Close(ctx context.Context) {
 	if s.connection != nil {
-		s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		s.connection.Close()
 		s.connection = nil
 	}
 }
@@ -166,7 +167,7 @@ func (s *WebSocketSession) IsOpen() bool {
 
 func (s *WebSocketSession) closeWithError(err error) {
 	if s.connection != nil {
-		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
+		s.connection.Close()
 		s.connection = nil
 	}
 }
