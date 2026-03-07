@@ -15,4 +15,5 @@ type SessionStorage interface {
 	GetByID(uuid.UUID) (session.Session, error)
 	CloseByID(ctx context.Context, id uuid.UUID) error
 	CloseAllByType(ctx context.Context, incoming bool) error
+	Close()
 }

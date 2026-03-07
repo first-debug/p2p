@@ -11,8 +11,8 @@ import (
 	updexplorer "github.com/first-debug/p2p/internal/explorer/UPDExplorer"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage/memory"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer/memory"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session/memory"
 
 	"github.com/google/uuid"
 )

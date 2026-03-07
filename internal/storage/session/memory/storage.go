@@ -1,36 +1,59 @@
-package inmemorysessionstorage
+package memory
 
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/first-debug/p2p/internal/session"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	"github.com/first-debug/p2p/internal/storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 
 	"github.com/google/uuid"
 )
 
+var logger log.Logger = *log.New(os.Stderr, "[MemoryPeerStorage] ", log.LstdFlags)
+
 type MemorySessionStorage struct {
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
 	sessionsMux sync.RWMutex
 	sessions    map[uuid.UUID]session.Session
 }
 
 func NewMemorySessionStorage() sessionstorage.SessionStorage {
-	return &MemorySessionStorage{
-		sessions: make(map[uuid.UUID]session.Session),
+	ctx, cancel := context.WithCancel(context.Background())
+	storage := &MemorySessionStorage{
+		ctx:       ctx,
+		ctxCancel: cancel,
+		sessions:  make(map[uuid.UUID]session.Session),
 	}
+
+	storage.wg.Go(storage.checkSessionsAvailable)
+
+	return storage
 }
 
 func (s *MemorySessionStorage) Add(newSession session.Session) error {
 	s.sessionsMux.Lock()
+	defer s.sessionsMux.Unlock()
+
+	if _, exist := s.sessions[newSession.GetID()]; exist {
+		return storage.ErrAlreadyExists
+	}
 	s.sessions[newSession.GetID()] = newSession
-	s.sessionsMux.Unlock()
 	return nil
 }
 
 func (s *MemorySessionStorage) GetAll() ([]session.Session, error) {
 	s.sessionsMux.RLock()
+	defer s.sessionsMux.RUnlock()
+
 	count := len(s.sessions)
 	res := make([]session.Session, count)
 	count--
@@ -38,13 +61,8 @@ func (s *MemorySessionStorage) GetAll() ([]session.Session, error) {
 		res[count] = j
 		count--
 	}
-	s.sessionsMux.RUnlock()
 	return res, nil
 }
-
-// func (s *MemorySessionStorage) GetPage(start, stop int) ([]session.Session, error) {
-// 	return nil, nil
-// }
 
 func (s *MemorySessionStorage) GetByID(id uuid.UUID) (session.Session, error) {
 	s.sessionsMux.RLock()
@@ -59,6 +77,8 @@ func (s *MemorySessionStorage) GetByID(id uuid.UUID) (session.Session, error) {
 
 func (s *MemorySessionStorage) CloseByID(ctx context.Context, id uuid.UUID) error {
 	s.sessionsMux.Lock()
+	defer s.sessionsMux.Unlock()
+
 	for i, j := range s.sessions {
 		if id == i {
 			j.Close(ctx)
@@ -66,12 +86,13 @@ func (s *MemorySessionStorage) CloseByID(ctx context.Context, id uuid.UUID) erro
 			return nil
 		}
 	}
-	s.sessionsMux.Unlock()
 	return fmt.Errorf("cannot found Session with ID = %v", id)
 }
 
 func (s *MemorySessionStorage) CloseAllByType(ctx context.Context, incoming bool) error {
 	s.sessionsMux.Lock()
+	defer s.sessionsMux.Unlock()
+
 	for i, j := range s.sessions {
 		if incoming == j.IsIncoming() {
 			j.Close(ctx)
@@ -79,6 +100,32 @@ func (s *MemorySessionStorage) CloseAllByType(ctx context.Context, incoming bool
 			return nil
 		}
 	}
-	s.sessionsMux.Unlock()
 	return nil
+}
+
+func (s *MemorySessionStorage) Close() {
+	s.ctxCancel()
+	s.wg.Wait()
+}
+
+func (s *MemorySessionStorage) checkSessionsAvailable() {
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			sessions, err := s.GetAll()
+			if err != nil {
+				logger.Printf("%v", err)
+			}
+			s.sessionsMux.Lock()
+			defer s.sessionsMux.Unlock()
+			for _, i := range sessions {
+				if i.IsOpen() {
+					delete(s.sessions, i.GetID())
+				}
+			}
+		}
+	}
 }
