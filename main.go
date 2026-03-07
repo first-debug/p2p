@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/config"
+	"github.com/first-debug/p2p/internal/domain"
 	udpexplorer "github.com/first-debug/p2p/internal/explorer/udp"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
@@ -17,8 +18,15 @@ import (
 	"github.com/google/uuid"
 )
 
+var selfInfo domain.Peer
+
 func main() {
 	cfg := config.MustLoad()
+
+	selfInfo = domain.Peer{
+		ID:   uuid.New(),
+		Port: cfg.WebSocketPort,
+	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	defer ctxCancel()
@@ -34,7 +42,7 @@ func main() {
 	}()
 
 	explorer, err := udpexplorer.NewUDPExplorer(cfg, &pb.Peer{
-		ID:   pb.ToPbUUID(uuid.New()),
+		ID:   pb.ToPbUUID(selfInfo.ID),
 		Port: int32(cfg.WebSocketPort),
 	}, pStorage)
 	if err != nil {
