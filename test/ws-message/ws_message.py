@@ -6,7 +6,7 @@ from datetime import datetime
 
 async def test():
     uri = "ws://localhost:8001/ws"
-    async with websockets.connect(uri, close_timeout=60, ping_interval=60) as ws:
+    async with websockets.connect(uri, close_timeout=60, ping_interval=60, additional_headers={"PeerID":"203b7596-40ef-4e29-82af-17a790cdf68c"}) as ws:
         # Создаем сообщение
         msg = message_pb2.Message()
         msg.send_time = datetime.now()
