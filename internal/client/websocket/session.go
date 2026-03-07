@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/first-debug/p2p/internal/domain"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/session"
 	"github.com/google/uuid"
-	"golang.org/x/net/websocket"
 	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 )
@@ -61,6 +61,11 @@ func (s *WebSocketSession) GetWriteChannel(context.Context) (*chan *pb.Message, 
 		return nil, errors.New("write channel is nil")
 	}
 	return &s.writeChan, nil
+func (s *WebSocketSession) Close(context.Context) {
+	if s.connection != nil {
+		s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		s.connection = nil
+	}
 }
 
 func (s *WebSocketSession) Read(ctx context.Context) {
@@ -89,18 +94,18 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 			var data []byte
 
 			fmt.Println(s)
-			_, err = s.connection.Read(data)
+			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
 				s.closeWithError(err)
 				logger.Printf("%v", err)
 				return
 			}
-			// if typ != websocket.MessageBinary {
-			// 	errMsg := "unsupported message type"
-			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", errMsg)
-			// 	return
-			// }
+			if typ != websocket.MessageBinary {
+				errMsg := "unsupported message type"
+				logger.Printf("%v", errMsg)
+				s.closeWithError(errors.New(errMsg))
+				return
+			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
 				logger.Printf("%e", err)
@@ -143,9 +148,7 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 				return
 			}
 
-			logger.Print("befor write")
-			_, err = s.connection.Write(data)
-			logger.Print("after write")
+			err = s.connection.Write(ctx, websocket.MessageBinary, data)
 			if err != nil {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
@@ -155,12 +158,6 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 	}
 }
 
-func (s *WebSocketSession) Close(ctx context.Context) {
-	if s.connection != nil {
-		s.connection.Close()
-		s.connection = nil
-	}
-}
 
 func (s *WebSocketSession) IsOpen() bool {
 	return s.connection != nil
@@ -168,7 +165,7 @@ func (s *WebSocketSession) IsOpen() bool {
 
 func (s *WebSocketSession) closeWithError(err error) {
 	if s.connection != nil {
-		s.connection.Close()
+		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
 		s.connection = nil
 	}
 }
