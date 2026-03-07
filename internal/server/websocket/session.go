@@ -47,6 +47,12 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 	ws.Incoming = incoming
 	ws.LastDial = lastDial
 
+	logger.Printf("Created new incoming session with ID = %v, Peer = {%v, %v, %d}, lastDial = %v",
+		ws.ID,
+		ws.Peer.ID, ws.Peer.IP, ws.Peer.Port,
+		ws.LastDial,
+	)
+
 	ws.wg.Go(ws.read)
 	ws.wg.Go(ws.write)
 
@@ -132,6 +138,7 @@ func (s *WebSocketSession) read() {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
 			}
+			s.LastDial = time.Now()
 			s.readChan <- msg
 		}
 	}
@@ -175,6 +182,7 @@ func (s *WebSocketSession) write() {
 				s.closeWithError(err)
 				return
 			}
+			s.LastDial = time.Now()
 		}
 	}
 }
