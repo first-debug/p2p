@@ -3,13 +3,19 @@ package memory
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/first-debug/p2p/internal/session"
+	"github.com/first-debug/p2p/internal/storage"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 
 	"github.com/google/uuid"
 )
+
+var logger log.Logger = *log.New(os.Stderr, "[MemoryPeerStorage] ", log.LstdFlags)
 
 type MemorySessionStorage struct {
 	ctx       context.Context
