@@ -110,7 +110,6 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		logger.Printf("%v", err)
 		return
 	}
-	c.Read(s.ctx)
 	newS := NewWebSocketSession(c, &peer, true, time.Now())
 	s.sessionsStorage.Add(newS)
 }
