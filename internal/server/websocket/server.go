@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/server"
-	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
+	"github.com/google/uuid"
 
 	"github.com/coder/websocket"
 )
