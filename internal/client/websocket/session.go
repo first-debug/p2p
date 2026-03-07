@@ -4,19 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/first-debug/p2p/internal/domain"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/session"
 	"github.com/google/uuid"
-	"golang.org/x/net/websocket"
 	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 )
 
 type WebSocketSession struct {
 	session.BaseSession
+
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
 
 	connection  *websocket.Conn
 	rateLimiter *rate.Limiter
@@ -26,17 +31,24 @@ type WebSocketSession struct {
 
 func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
 	logger.Println("Create new session")
+	ctx, cancel := context.WithCancel(context.Background())
 	ws := &WebSocketSession{
+		ctx:         ctx,
+		ctxCancel:   cancel,
 		connection:  conn,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 10),
 		readChan:    make(chan *pb.Message, 20),
+		writeChan:   make(chan *pb.Message, 20),
 	}
 	ws.ID = uuid.New()
-	ws.Peer = peer
+	ws.Peer = *peer
 	ws.Incoming = incoming
 	ws.LastDial = lastDial
-	go ws.Read(context.Background())
-	go ws.Write(context.Background())
+
+	ws.wg.Go(ws.read)
+	ws.wg.Go(ws.write)
+	ws.wg.Go(ws.ping)
+
 	return ws
 }
 
@@ -44,94 +56,114 @@ func (s *WebSocketSession) GetID() uuid.UUID {
 	return s.ID
 }
 
+func (s *WebSocketSession) GetLastDial() time.Time {
+	return s.LastDial
+}
+
+func (s *WebSocketSession) GetReadChannel(context.Context) (<-chan *pb.Message, error) {
+	if s.readChan == nil {
+		return nil, errors.New("read channel is nil")
+	}
+	return s.readChan, nil
+}
+
+func (s *WebSocketSession) GetWriteChannel(context.Context) (chan<- *pb.Message, error) {
+	if s.writeChan == nil {
+		return nil, errors.New("write channel is nil")
+	}
+	return s.writeChan, nil
+}
+
 func (s *WebSocketSession) IsIncoming() bool {
 	return s.Incoming
 }
 
-func (s *WebSocketSession) GetReadChannel(context.Context) (*chan *pb.Message, error) {
-	if s.readChan == nil {
-		return nil, errors.New("read channel is nil")
-	}
-	return &s.readChan, nil
+func (s *WebSocketSession) IsOpen() bool {
+	return s.connection != nil
 }
 
-func (s *WebSocketSession) GetWriteChannel(context.Context) (*chan *pb.Message, error) {
-	if s.writeChan == nil {
-		return nil, errors.New("write channel is nil")
+func (s *WebSocketSession) Close(context.Context) {
+	s.ctxCancel()
+	if s.connection != nil {
+		s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		s.connection = nil
 	}
-	return &s.writeChan, nil
+	s.wg.Wait()
 }
 
-func (s *WebSocketSession) Read(ctx context.Context) {
+func (s *WebSocketSession) read() {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return
 		default:
 			if s.connection == nil {
 				logger.Println("connections closed")
+				s.Close(s.ctx)
 				return
 			}
-
-			ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-			defer cancel()
 
 			msg := &pb.Message{}
 
-			err := s.rateLimiter.Wait(ctx)
-			if err != nil {
-				s.closeWithError(err)
-				logger.Printf("%v", err)
-				return
-			}
+			// ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
+			// defer cancel()
+
+			// err := s.rateLimiter.Wait(ctx)
+			// if err != nil {
+			// 	s.closeWithError(err)
+			// 	logger.Printf("%v", err)
+			// 	return
+			// }
 
 			var data []byte
 
-			fmt.Println(s)
-			_, err = s.connection.Read(data)
+			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
-				s.closeWithError(err)
 				logger.Printf("%v", err)
+				s.closeWithError(err)
 				return
 			}
-			// if typ != websocket.MessageBinary {
-			// 	errMsg := "unsupported message type"
-			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", errMsg)
-			// 	return
-			// }
+			if typ != websocket.MessageBinary {
+				errMsg := "unsupported message type"
+				logger.Printf("%v", errMsg)
+				s.closeWithError(errors.New(errMsg))
+				return
+			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
 			}
+			s.LastDial = time.Now()
 			s.readChan <- msg
 		}
 	}
 }
 
-func (s *WebSocketSession) Write(ctx context.Context) {
+func (s *WebSocketSession) write() {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
 				logger.Println("read channel closed")
+				s.Close(s.ctx)
 				return
 			}
 			if s.connection == nil {
 				logger.Println("connections closed")
+				s.Close(s.ctx)
 				return
 			}
 
-			ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+			ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
 			defer cancel()
 
 			err := s.rateLimiter.Wait(ctx)
 			if err != nil {
-				s.closeWithError(err)
 				logger.Printf("%v", err)
+				s.closeWithError(err)
 				return
 			}
 
@@ -142,32 +174,42 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 				return
 			}
 
-			logger.Print("befor write")
-			_, err = s.connection.Write(data)
-			logger.Print("after write")
+			err = s.connection.Write(ctx, websocket.MessageBinary, data)
 			if err != nil {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
 				return
 			}
+			s.LastDial = time.Now()
 		}
 	}
 }
 
-func (s *WebSocketSession) Close(ctx context.Context) {
-	if s.connection != nil {
-		s.connection.Close()
-		s.connection = nil
-	}
-}
+func (s *WebSocketSession) ping() {
+	tikcer := time.NewTicker(10 * time.Second)
+	defer tikcer.Stop()
 
-func (s *WebSocketSession) IsOpen() bool {
-	return s.connection != nil
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-tikcer.C:
+			ctx, ctxCancel := context.WithTimeout(s.ctx, time.Second)
+			defer ctxCancel()
+
+			if err := s.connection.Ping(ctx); err != nil {
+				s.ctxCancel()
+				s.connection = nil
+			}
+		}
+	}
 }
 
 func (s *WebSocketSession) closeWithError(err error) {
+	s.ctxCancel()
 	if s.connection != nil {
-		s.connection.Close()
+		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
 		s.connection = nil
 	}
+	s.wg.Wait()
 }
