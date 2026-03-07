@@ -1,6 +1,7 @@
 package udp
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -19,14 +20,15 @@ import (
 var logger log.Logger = *log.New(os.Stderr, "[UDPExplorer] ", log.LstdFlags)
 
 type UDPExplorer struct {
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
 	sender   *net.UDPConn
 	listener *net.UDPConn
 	peerInfo *pb.Peer
 
 	peerStorage peerstorage.PeerStorage
-
-	wg   *sync.WaitGroup
-	stop chan struct{}
 }
 
 func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
@@ -61,12 +63,15 @@ func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstora
 	}
 	logger.Println("UDP Explorer started")
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	e := &UDPExplorer{
+		ctx:         ctx,
+		ctxCancel:   cancel,
 		listener:    listener,
 		sender:      sender,
 		peerInfo:    peerInfo,
 		peerStorage: peerStorage,
-		wg:          &sync.WaitGroup{},
 	}
 	e.wg.Go(e.startReceive)
 
@@ -125,7 +130,7 @@ func (e *UDPExplorer) Emit() error {
 }
 
 func (e *UDPExplorer) Stop() {
-	close(e.stop)
+	e.ctxCancel()
 	e.wg.Wait()
 	e.listener.Close()
 	e.sender.Close()
