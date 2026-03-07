@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/server"
-	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
+	"github.com/google/uuid"
 
 	"github.com/coder/websocket"
 )
@@ -51,6 +52,17 @@ func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage,
 		WriteTimeout: time.Second * 10,
 	}
 
+	s.serveMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		if s.isStopping.Load() {
+			w.WriteHeader(http.StatusNotAcceptable)
+			if _, err := w.Write([]byte("server is stopping")); err != nil {
+				logger.Fatalf("cannot answer on ping: %e", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 	s.serveMux.HandleFunc("/ws", s.messageHandle)
 	s.isStopping.Store(false)
 	return s
@@ -98,8 +110,12 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	logger.Println("start handler")
-	peerID := r.Header.Get("PeerID")
-	peer, err := s.peerStorage.GetByID([]byte(peerID))
+	peerID, err := uuid.Parse(r.Header.Get("PeerID"))
+	if err != nil {
+		logger.Printf("%v", err)
+		return
+	}
+	peer, err := s.peerStorage.GetByID(peerID)
 	if err != nil {
 		logger.Printf("%v", err)
 	}
@@ -109,7 +125,6 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		logger.Printf("%v", err)
 		return
 	}
-	c.Read(s.ctx)
 	newS := NewWebSocketSession(c, &peer, true, time.Now())
 	s.sessionsStorage.Add(newS)
 }
