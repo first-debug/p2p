@@ -131,6 +131,7 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 				logger.Printf("%e", err)
 				s.closeWithError(err)
 			}
+			s.LastDial = time.Now()
 			s.readChan <- msg
 		}
 	}
@@ -176,6 +177,7 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 				s.closeWithError(err)
 				return
 			}
+			s.LastDial = time.Now()
 		}
 	}
 }
