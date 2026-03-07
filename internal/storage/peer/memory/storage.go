@@ -26,14 +26,17 @@ func NewMemoryPeerStorage() peerstorage.PeerStorage {
 
 func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 	s.peersMux.Lock()
+	defer s.peersMux.Unlock()
+
 	s.peers[newPeer.ID] = newPeer
-	s.peersMux.Unlock()
 	logger.Printf("added new Peer = %v", newPeer)
 	return nil
 }
 
 func (s *MemoryPeerStorage) GetAll() ([]domain.Peer, error) {
 	s.peersMux.RLock()
+	defer s.peersMux.RUnlock()
+
 	count := len(s.peers)
 	res := make([]domain.Peer, count)
 	count--
@@ -41,41 +44,43 @@ func (s *MemoryPeerStorage) GetAll() ([]domain.Peer, error) {
 		res[count] = j
 		count--
 	}
-	s.peersMux.RUnlock()
 	return res, nil
 }
 
 func (s *MemoryPeerStorage) GetByID(id uuid.UUID) (domain.Peer, error) {
 	s.peersMux.RLock()
+	defer s.peersMux.RUnlock()
+
 	for i, j := range s.peers {
 		if id == i {
 			return j, nil
 		}
 	}
-	s.peersMux.RUnlock()
 	return domain.Peer{}, fmt.Errorf("cannot find Peer with ID = %v", id)
 }
 
 func (s *MemoryPeerStorage) RemoveByID(id uuid.UUID) error {
 	s.peersMux.Lock()
+	defer s.peersMux.Unlock()
+
 	for i := range s.peers {
 		if id == i {
 			delete(s.peers, i)
 			return nil
 		}
 	}
-	s.peersMux.Unlock()
 	return fmt.Errorf("cannot found Peer with ID = %v", id)
 }
 
 func (s *MemoryPeerStorage) RemoveByName(name string) error {
 	s.peersMux.Lock()
+	defer s.peersMux.Unlock()
+
 	for i, j := range s.peers {
 		if name == j.Name {
 			delete(s.peers, i)
 			return nil
 		}
 	}
-	s.peersMux.Unlock()
 	return fmt.Errorf("cannot found Peer with Name = %s", name)
 }
