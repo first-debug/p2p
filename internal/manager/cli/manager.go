@@ -7,13 +7,16 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	client "github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/manager"
+	pb "github.com/first-debug/p2p/internal/proto"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var logger log.Logger = *log.New(os.Stderr, "[CliManager] ", log.LstdFlags)
@@ -86,6 +89,12 @@ func (m *CliManager) Run() error {
 						continue
 					}
 					// TODO: add logic for sending messages from the `scanner` to the channel
+
+					time.Sleep(10 * time.Second)
+					ch <- &pb.Message{
+						SendTime: timestamppb.Now(),
+						Message:  fmt.Sprintf("hello from %s", m.selfInfo.ID),
+					}
 				} else if input == "list sessions" {
 					sess, err := m.sStorage.GetAll()
 					if err != nil {
