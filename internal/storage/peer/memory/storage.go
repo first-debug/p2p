@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/first-debug/p2p/internal/domain"
+	"github.com/first-debug/p2p/internal/storage"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	"github.com/google/uuid"
 )
@@ -28,6 +29,9 @@ func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 	s.peersMux.Lock()
 	defer s.peersMux.Unlock()
 
+	if _, exist := s.peers[newPeer.ID]; exist {
+		return storage.ErrAlreadyExists
+	}
 	s.peers[newPeer.ID] = newPeer
 	logger.Printf("added new Peer = %v", newPeer)
 	return nil
@@ -69,7 +73,7 @@ func (s *MemoryPeerStorage) RemoveByID(id uuid.UUID) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("cannot found Peer with ID = %v", id)
+	return fmt.Errorf("cannot remove Peer with ID = %v", id)
 }
 
 func (s *MemoryPeerStorage) RemoveByName(name string) error {
