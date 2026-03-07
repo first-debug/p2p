@@ -12,14 +12,23 @@ import (
 )
 
 type MemorySessionStorage struct {
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
 	sessionsMux sync.RWMutex
 	sessions    map[uuid.UUID]session.Session
 }
 
 func NewMemorySessionStorage() sessionstorage.SessionStorage {
-	return &MemorySessionStorage{
-		sessions: make(map[uuid.UUID]session.Session),
+	ctx, cancel := context.WithCancel(context.Background())
+	storage := &MemorySessionStorage{
+		ctx:       ctx,
+		ctxCancel: cancel,
+		sessions:  make(map[uuid.UUID]session.Session),
 	}
+
+	return storage
 }
 
 func (s *MemorySessionStorage) Add(newSession session.Session) error {
@@ -81,4 +90,9 @@ func (s *MemorySessionStorage) CloseAllByType(ctx context.Context, incoming bool
 		}
 	}
 	return nil
+}
+
+func (s *MemorySessionStorage) Close() {
+	s.ctxCancel()
+	s.wg.Wait()
 }
