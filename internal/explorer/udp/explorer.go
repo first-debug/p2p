@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/first-debug/p2p/internal/config"
 	"github.com/first-debug/p2p/internal/explorer"
 	pb "github.com/first-debug/p2p/internal/proto"
+	"github.com/first-debug/p2p/internal/storage"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 
 	"google.golang.org/protobuf/proto"
@@ -74,7 +77,9 @@ func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstora
 		peerInfo:    peerInfo,
 		peerStorage: peerStorage,
 	}
+
 	e.wg.Go(e.startReceive)
+	e.wg.Go(e.checkPeersAvailable)
 
 	return e, err
 }
@@ -132,6 +137,28 @@ func (e *UDPExplorer) startReceive() {
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 				logger.Printf("Cannot add new peer: %v", err)
+			}
+		}
+	}
+}
+
+func (e *UDPExplorer) checkPeersAvailable() {
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+		case <-ticker.C:
+			peers, err := e.peerStorage.GetAll()
+			if err != nil {
+				logger.Printf("%v", err)
+			}
+			for _, i := range peers {
+				res, err := http.Get(fmt.Sprintf("%v:%v/ping", i.IP, i.Port))
+				if err == nil && res.StatusCode == http.StatusOK {
+					continue
+				}
+				e.peerStorage.RemoveByID(i.ID)
 			}
 		}
 	}
