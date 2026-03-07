@@ -20,6 +20,9 @@ import (
 func main() {
 	cfg := config.MustLoad()
 
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	defer ctxCancel()
+
 	pStorage := peerstorage.NewMemoryPeerStorage()
 	sStorage := sessionstorage.NewMemorySessionStorage()
 
@@ -36,14 +39,12 @@ func main() {
 	}, pStorage)
 	if err != nil {
 		log.Printf("%v", err)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		s.Stop(ctx)
 
 		return
 	}
-
-	stop := make(chan any)
 
 	go func() {
 		ticker := time.NewTicker(time.Second)
@@ -53,7 +54,7 @@ func main() {
 			select {
 			case <-ticker.C:
 				explorer.Emit()
-			case <-stop:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -65,7 +66,7 @@ func main() {
 	case err := <-serverErr:
 		log.Printf("failed to serve: %v", err)
 	case sig := <-sigs:
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		s.Stop(ctx)
 		log.Printf("terminating: %v", sig)
