@@ -2,12 +2,16 @@ package memory
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 
 	"github.com/first-debug/p2p/internal/domain"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	"github.com/google/uuid"
 )
+
+var logger log.Logger = *log.New(os.Stderr, "[MemoryPeerStorage] ", log.LstdFlags)
 
 type MemoryPeerStorage struct {
 	peersMux sync.RWMutex
@@ -24,6 +28,7 @@ func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 	s.peersMux.Lock()
 	s.peers[newPeer.ID] = newPeer
 	s.peersMux.Unlock()
+	logger.Printf("added new Peer = %v", newPeer)
 	return nil
 }
 
