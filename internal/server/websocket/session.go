@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/first-debug/p2p/internal/domain"
@@ -19,22 +20,30 @@ import (
 type WebSocketSession struct {
 	session.BaseSession
 
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	wg        sync.WaitGroup
+
 	connection  *websocket.Conn
 	rateLimiter *rate.Limiter
 	readChan    chan *pb.Message
 	writeChan   chan *pb.Message
 }
 
+// NewWebSocketSession принимает указатель на УЖЕ готовое подключение [websocket.Conn] и остальные необходимые данные для создания сессии [WebSocketSession]
 func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
 	logger.Println("Create new session")
+	ctx, cancel := context.WithCancel(context.Background())
 	ws := &WebSocketSession{
+		ctx:         ctx,
+		ctxCancel:   cancel,
 		connection:  conn,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 10),
 		readChan:    make(chan *pb.Message, 20),
 		writeChan:   make(chan *pb.Message, 20),
 	}
 	ws.ID = uuid.New()
-	ws.Peer = peer
+	ws.Peer = *peer
 	ws.Incoming = incoming
 	ws.LastDial = lastDial
 	go ws.Read(context.Background())
@@ -46,28 +55,45 @@ func (s *WebSocketSession) GetID() uuid.UUID {
 	return s.ID
 }
 
+func (s *WebSocketSession) GetLastDial() time.Time {
+	return s.LastDial
+}
+
+func (s *WebSocketSession) GetReadChannel(context.Context) (<-chan *pb.Message, error) {
+	if s.readChan == nil {
+		return nil, errors.New("read channel is nil")
+	}
+	return s.readChan, nil
+}
+
+func (s *WebSocketSession) GetWriteChannel(context.Context) (chan<- *pb.Message, error) {
+	if s.writeChan == nil {
+		return nil, errors.New("write channel is nil")
+	}
+	return s.writeChan, nil
+}
+
 func (s *WebSocketSession) IsIncoming() bool {
 	return s.Incoming
 }
 
-func (s *WebSocketSession) GetReadChannel(context.Context) (*chan *pb.Message, error) {
-	if s.readChan == nil {
-		return nil, errors.New("read channel is nil")
-	}
-	return &s.readChan, nil
+func (s *WebSocketSession) IsOpen() bool {
+	return s.connection != nil
 }
 
-func (s *WebSocketSession) GetWriteChannel(context.Context) (*chan *pb.Message, error) {
-	if s.writeChan == nil {
-		return nil, errors.New("write channel is nil")
+func (s *WebSocketSession) Close(ctx context.Context) {
+	s.ctxCancel()
+	if s.connection != nil {
+		s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		s.connection = nil
 	}
-	return &s.writeChan, nil
+	s.wg.Wait()
 }
 
 func (s *WebSocketSession) Read(ctx context.Context) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return
 		default:
 			if s.connection == nil {
@@ -75,10 +101,10 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 				return
 			}
 
-			ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-			defer cancel()
-
 			msg := &pb.Message{}
+
+			// ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
+			// defer cancel()
 
 			// err := s.rateLimiter.Wait(ctx)
 			// if err != nil {
@@ -87,9 +113,7 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 			// 	return
 			// }
 
-			logger.Print("befor read")
-			typ, data, err := s.connection.Read(ctx)
-			logger.Print("after read")
+			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
 				s.closeWithError(err)
 				logger.Printf("%v", err)
@@ -114,7 +138,7 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 func (s *WebSocketSession) Write(ctx context.Context) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
@@ -126,7 +150,7 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 				return
 			}
 
-			ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+			ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
 			defer cancel()
 
 			// err := s.rateLimiter.Wait(ctx)
@@ -153,20 +177,11 @@ func (s *WebSocketSession) Write(ctx context.Context) {
 	}
 }
 
-func (s *WebSocketSession) Close(ctx context.Context) {
-	if s.connection != nil {
-		s.connection.Close(websocket.StatusNormalClosure, "manual close")
-		s.connection = nil
-	}
-}
-
-func (s *WebSocketSession) IsOpen() bool {
-	return s.connection != nil
-}
-
 func (s *WebSocketSession) closeWithError(err error) {
+	s.ctxCancel()
 	if s.connection != nil {
 		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
 		s.connection = nil
 	}
+	s.wg.Wait()
 }
