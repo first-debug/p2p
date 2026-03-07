@@ -30,6 +30,7 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 		connection:  conn,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Millisecond*100), 10),
 		readChan:    make(chan *pb.Message, 20),
+		writeChan:   make(chan *pb.Message, 20),
 	}
 	ws.ID = uuid.New()
 	ws.Peer = peer
