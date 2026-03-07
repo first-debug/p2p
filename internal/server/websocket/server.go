@@ -99,8 +99,12 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	logger.Println("start handler")
-	peerID := r.Header.Get("PeerID")
-	peer, err := s.peerStorage.GetByID([]byte(peerID))
+	peerID, err := uuid.Parse(r.Header.Get("PeerID"))
+	if err != nil {
+		logger.Printf("%v", err)
+		return
+	}
+	peer, err := s.peerStorage.GetByID(peerID)
 	if err != nil {
 		logger.Printf("%v", err)
 	}
