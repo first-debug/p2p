@@ -1,4 +1,4 @@
-package inmemorysessionstorage
+package memory
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/first-debug/p2p/internal/session"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 
 	"github.com/google/uuid"
 )

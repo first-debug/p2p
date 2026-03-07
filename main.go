@@ -12,7 +12,7 @@ import (
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage/memory"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage/memory"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session/memory"
 
 	"github.com/google/uuid"
 )
