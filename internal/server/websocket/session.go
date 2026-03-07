@@ -46,8 +46,10 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 	ws.Peer = *peer
 	ws.Incoming = incoming
 	ws.LastDial = lastDial
-	go ws.Read(context.Background())
-	go ws.Write(context.Background())
+
+	ws.wg.Go(ws.read)
+	ws.wg.Go(ws.write)
+
 	return ws
 }
 
@@ -90,7 +92,7 @@ func (s *WebSocketSession) Close(ctx context.Context) {
 	s.wg.Wait()
 }
 
-func (s *WebSocketSession) Read(ctx context.Context) {
+func (s *WebSocketSession) read() {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -135,7 +137,7 @@ func (s *WebSocketSession) Read(ctx context.Context) {
 	}
 }
 
-func (s *WebSocketSession) Write(ctx context.Context) {
+func (s *WebSocketSession) write() {
 	for {
 		select {
 		case <-s.ctx.Done():
