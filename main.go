@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/config"
-	updexplorer "github.com/first-debug/p2p/internal/explorer/udp"
+	udpexplorer "github.com/first-debug/p2p/internal/explorer/udp"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer/memory"
@@ -33,7 +33,7 @@ func main() {
 		serverErr <- s.Serve()
 	}()
 
-	explorer, err := updexplorer.NewUDPExplorer(cfg, &pb.Peer{
+	explorer, err := udpexplorer.NewUDPExplorer(cfg, &pb.Peer{
 		ID:   pb.ToPbUUID(uuid.New()),
 		Port: int32(cfg.WebSocketPort),
 	}, pStorage)
