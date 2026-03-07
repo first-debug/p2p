@@ -19,10 +19,12 @@ var logger log.Logger = *log.New(os.Stderr, "[WebSocketClient] ", log.LstdFlags)
 
 type WebSocketClient struct {
 	sStorage sessionstorage.SessionStorage
+	selfInfo domain.Peer
 }
 
-func NewWebSocketClient(sStorage sessionstorage.SessionStorage) client.Client {
+func NewWebSocketClient(peer domain.Peer, sStorage sessionstorage.SessionStorage) client.Client {
 	return &WebSocketClient{
+		selfInfo: peer,
 		sStorage: sStorage,
 	}
 }
@@ -35,7 +37,7 @@ func (c *WebSocketClient) Connect(ctx context.Context, peer *domain.Peer) (sessi
 	}
 	conn, _, err := websocket.Dial(ctx, url.String(), &websocket.DialOptions{
 		HTTPHeader: map[string][]string{
-			"PeerID": {string(peer.ID)},
+			"PeerID": {c.selfInfo.ID.String()},
 		},
 	})
 	if err != nil {
