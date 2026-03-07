@@ -47,6 +47,7 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 
 	ws.wg.Go(ws.read)
 	ws.wg.Go(ws.write)
+	ws.wg.Go(ws.ping)
 
 	return ws
 }
@@ -184,7 +185,24 @@ func (s *WebSocketSession) write() {
 	}
 }
 
+func (s *WebSocketSession) ping() {
+	tikcer := time.NewTicker(10 * time.Second)
+	defer tikcer.Stop()
 
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-tikcer.C:
+			ctx, ctxCancel := context.WithTimeout(s.ctx, time.Second)
+			defer ctxCancel()
+
+			if err := s.connection.Ping(ctx); err != nil {
+				s.ctxCancel()
+				s.connection = nil
+			}
+		}
+	}
 }
 
 func (s *WebSocketSession) closeWithError(err error) {
