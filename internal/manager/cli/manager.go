@@ -86,6 +86,48 @@ func (m *CliManager) Run() error {
 						continue
 					}
 					// TODO: add logic for sending messages from the `scanner` to the channel
+				} else if input == "list sessions" {
+					sess, err := m.sStorage.GetAll()
+					if err != nil {
+						fmt.Fprintln(writer, err.Error())
+					} else {
+						fmt.Fprint(writer, "[")
+						for _, v := range sess {
+							fmt.Fprintln(writer)
+							fmt.Fprintln(writer, "\t", v.GetID())
+						}
+						fmt.Fprintln(writer, "]")
+					}
+				} else if strings.Contains(input, "attach ") {
+					strs := strings.Split(input, " ")
+					if len(strs) != 2 {
+						fmt.Fprintln(writer, "too many arguments for `attach` command")
+						continue
+					}
+					id, err := uuid.Parse(strs[1])
+					if err != nil {
+						fmt.Fprintln(writer, err.Error())
+						continue
+					}
+					sess, err := m.sStorage.GetByID(id)
+					if err != nil {
+						fmt.Fprintln(writer, err.Error())
+						continue
+					}
+					ch, err := sess.GetReadChannel(m.ctx)
+					if err != nil {
+						fmt.Fprintln(writer, err.Error())
+						continue
+					}
+					select {
+					case <-m.ctx.Done():
+						break
+					case v, ok := <-ch:
+						if !ok {
+							fmt.Fprintln(writer, "read channel close")
+						}
+						fmt.Fprintln(writer, sess.GetID().String(), "(", v.SendTime.String(), "): ", v.Message)
+					}
 				} else {
 					fmt.Fprintln(writer, "not supported command")
 				}
