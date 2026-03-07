@@ -35,6 +35,9 @@ func (s *MemorySessionStorage) Add(newSession session.Session) error {
 	s.sessionsMux.Lock()
 	defer s.sessionsMux.Unlock()
 
+	if _, exist := s.sessions[newSession.GetID()]; exist {
+		return storage.ErrAlreadyExists
+	}
 	s.sessions[newSession.GetID()] = newSession
 	return nil
 }
