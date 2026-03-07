@@ -12,7 +12,7 @@ import (
 	"github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/session"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 )
 
 var logger log.Logger = *log.New(os.Stderr, "[WebSocketClient] ", log.LstdFlags)
