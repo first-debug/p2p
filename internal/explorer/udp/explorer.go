@@ -2,6 +2,7 @@ package udp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -78,45 +79,6 @@ func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstora
 	return e, err
 }
 
-func (e *UDPExplorer) startReceive() {
-	logger.Println("starting recive information from other peers")
-	e.wg.Go(func() {
-		data := make([]byte, 1024)
-		for {
-			select {
-			case <-e.stop:
-				return
-			default:
-				n, addr, err := e.listener.ReadFromUDP(data)
-				ipParts := strings.Split(e.sender.LocalAddr().String(), ":")
-				if len(ipParts) != 2 {
-					logger.Printf("cannot parse local IPv4 from string '%v'", e.sender.LocalAddr().String())
-				}
-				if addr.IP.String() == ipParts[0] {
-					continue
-				}
-
-				if err != nil {
-					logger.Printf("Read error: %v", err)
-					continue
-				}
-				var msg pb.Peer
-				err = proto.Unmarshal(data[:n], &msg)
-				if err != nil {
-					logger.Printf("cannot unmarshal UDP request: %v", err)
-					continue
-				}
-				peer := pb.PbPeerToDomain(&msg)
-				peer.IP = addr.IP
-				err = e.peerStorage.Add(peer)
-				if err != nil {
-					logger.Printf("Cannot add new peer: %v", err)
-				}
-			}
-		}
-	})
-}
-
 func (e *UDPExplorer) Emit() error {
 	data, err := proto.Marshal(e.peerInfo)
 	if err != nil {
@@ -134,4 +96,43 @@ func (e *UDPExplorer) Stop() {
 	e.wg.Wait()
 	e.listener.Close()
 	e.sender.Close()
+}
+
+func (e *UDPExplorer) startReceive() {
+	logger.Println("starting recive information from other peers")
+	data := make([]byte, 1024)
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+		default:
+			n, addr, err := e.listener.ReadFromUDP(data)
+			if err != nil {
+				logger.Printf("read error: %v", err)
+				continue
+			}
+
+			// compare local address with addres of incoming request
+			ipParts := strings.Split(e.sender.LocalAddr().String(), ":")
+			if len(ipParts) != 2 {
+				logger.Printf("cannot parse local IPv4 from string '%v'", e.sender.LocalAddr().String())
+			}
+			if addr.IP.String() == ipParts[0] {
+				continue
+			}
+
+			var msg pb.Peer
+			err = proto.Unmarshal(data[:n], &msg)
+			if err != nil {
+				logger.Printf("cannot unmarshal UDP request: %v", err)
+				continue
+			}
+			peer := pb.PbPeerToDomain(&msg)
+			peer.IP = addr.IP
+			err = e.peerStorage.Add(peer)
+			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
+				logger.Printf("Cannot add new peer: %v", err)
+			}
+		}
+	}
 }
