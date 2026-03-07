@@ -52,6 +52,17 @@ func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage,
 		WriteTimeout: time.Second * 10,
 	}
 
+	s.serveMux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		if s.isStopping.Load() {
+			w.WriteHeader(http.StatusNotAcceptable)
+			if _, err := w.Write([]byte("server is stopping")); err != nil {
+				logger.Fatalf("cannot answer on ping: %e", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 	s.serveMux.HandleFunc("/ws", s.messageHandle)
 	s.isStopping.Store(false)
 	return s
