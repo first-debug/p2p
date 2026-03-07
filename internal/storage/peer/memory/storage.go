@@ -88,3 +88,5 @@ func (s *MemoryPeerStorage) RemoveByName(name string) error {
 	}
 	return fmt.Errorf("cannot found Peer with Name = %s", name)
 }
+
+func (s *MemoryPeerStorage) Close() {}

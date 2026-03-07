@@ -12,4 +12,5 @@ type PeerStorage interface {
 	GetByID(uuid.UUID) (domain.Peer, error)
 	RemoveByID(uuid.UUID) error
 	RemoveByName(string) error
+	Close()
 }
