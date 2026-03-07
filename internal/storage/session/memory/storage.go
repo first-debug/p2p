@@ -34,6 +34,8 @@ func NewMemorySessionStorage() sessionstorage.SessionStorage {
 		sessions:  make(map[uuid.UUID]session.Session),
 	}
 
+	storage.wg.Go(storage.checkSessionsAvailable)
+
 	return storage
 }
 
@@ -104,4 +106,26 @@ func (s *MemorySessionStorage) CloseAllByType(ctx context.Context, incoming bool
 func (s *MemorySessionStorage) Close() {
 	s.ctxCancel()
 	s.wg.Wait()
+}
+
+func (s *MemorySessionStorage) checkSessionsAvailable() {
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			sessions, err := s.GetAll()
+			if err != nil {
+				logger.Printf("%v", err)
+			}
+			s.sessionsMux.Lock()
+			defer s.sessionsMux.Unlock()
+			for _, i := range sessions {
+				if i.IsOpen() {
+					delete(s.sessions, i.GetID())
+				}
+			}
+		}
+	}
 }
