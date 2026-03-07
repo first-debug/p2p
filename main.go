@@ -3,20 +3,16 @@ package main
 import (
 	"context"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"time"
 
-	ws "github.com/first-debug/p2p/internal/client/websocket"
 	"github.com/first-debug/p2p/internal/config"
-	"github.com/first-debug/p2p/internal/domain"
 	updexplorer "github.com/first-debug/p2p/internal/explorer/UPDExplorer"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage/memory"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage/memory"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/google/uuid"
 )
@@ -35,7 +31,7 @@ func main() {
 	}()
 
 	explorer, err := updexplorer.NewUDPExplorer(cfg, &pb.Peer{
-		Id:   []byte(uuid.New().String()),
+		ID:   pb.ToPbUUID(uuid.New()),
 		Port: int32(cfg.WebSocketPort),
 	}, pStorage)
 	if err != nil {
@@ -62,32 +58,6 @@ func main() {
 			}
 		}
 	}()
-
-	pStorage.Add(domain.Peer{
-		ID:   uuid.Max[:],
-		IP:   net.ParseIP("192.168.0.175"),
-		Port: 8001,
-	})
-
-	client := ws.NewWebSocketClient(sStorage)
-	sess, err := client.Connect(context.Background(), &domain.Peer{
-		ID:   uuid.Max[:],
-		IP:   net.ParseIP("192.168.0.175"),
-		Port: 8001,
-	})
-	if err != nil {
-		log.Printf("%v", err)
-	} else {
-		ch, err := sess.GetWriteChannel(context.Background())
-		if err != nil {
-			log.Printf("%v", err)
-		} else {
-			*ch <- &pb.Message{
-				SendTime: timestamppb.Now(),
-				Message:  "pipapopa",
-			}
-		}
-	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)

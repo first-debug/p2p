@@ -7,13 +7,12 @@
 package pb
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -77,7 +76,7 @@ func (x *Message) GetMessage() string {
 
 type Peer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            []byte                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ID            *UUID                  `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
 	Files         map[string]string      `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -114,9 +113,9 @@ func (*Peer) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Peer) GetId() []byte {
+func (x *Peer) GetID() *UUID {
 	if x != nil {
-		return x.Id
+		return x.ID
 	}
 	return nil
 }
@@ -179,6 +178,50 @@ func (x *KnownPeers) GetKnownPeers() []*Peer {
 	return nil
 }
 
+type UUID struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         []byte                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UUID) Reset() {
+	*x = UUID{}
+	mi := &file_message_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UUID) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UUID) ProtoMessage() {}
+
+func (x *UUID) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UUID.ProtoReflect.Descriptor instead.
+func (*UUID) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UUID) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
 var File_message_proto protoreflect.FileDescriptor
 
 const file_message_proto_rawDesc = "" +
@@ -186,9 +229,9 @@ const file_message_proto_rawDesc = "" +
 	"\rmessage.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\\\n" +
 	"\aMessage\x127\n" +
 	"\tsend_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bsendTime\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x8c\x01\n" +
-	"\x04Peer\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\fR\x02id\x12\x12\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x93\x01\n" +
+	"\x04Peer\x12\x15\n" +
+	"\x02ID\x18\x01 \x01(\v2\x05.UUIDR\x02ID\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12&\n" +
 	"\x05files\x18\x03 \x03(\v2\x10.Peer.FilesEntryR\x05files\x1a8\n" +
 	"\n" +
@@ -198,7 +241,9 @@ const file_message_proto_rawDesc = "" +
 	"\n" +
 	"KnownPeers\x12&\n" +
 	"\vknown_peers\x18\x01 \x03(\v2\x05.PeerR\n" +
-	"knownPeersB\x06Z\x04./pbb\x06proto3"
+	"knownPeers\"\x1c\n" +
+	"\x04UUID\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\fR\x05valueB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_message_proto_rawDescOnce sync.Once
@@ -212,25 +257,25 @@ func file_message_proto_rawDescGZIP() []byte {
 	return file_message_proto_rawDescData
 }
 
-var (
-	file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-	file_message_proto_goTypes  = []any{
-		(*Message)(nil),               // 0: Message
-		(*Peer)(nil),                  // 1: Peer
-		(*KnownPeers)(nil),            // 2: KnownPeers
-		nil,                           // 3: Peer.FilesEntry
-		(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
-	}
-)
+var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_message_proto_goTypes = []any{
+	(*Message)(nil),               // 0: Message
+	(*Peer)(nil),                  // 1: Peer
+	(*KnownPeers)(nil),            // 2: KnownPeers
+	(*UUID)(nil),                  // 3: UUID
+	nil,                           // 4: Peer.FilesEntry
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+}
 var file_message_proto_depIdxs = []int32{
-	4, // 0: Message.send_time:type_name -> google.protobuf.Timestamp
-	3, // 1: Peer.files:type_name -> Peer.FilesEntry
-	1, // 2: KnownPeers.known_peers:type_name -> Peer
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 0: Message.send_time:type_name -> google.protobuf.Timestamp
+	3, // 1: Peer.ID:type_name -> UUID
+	4, // 2: Peer.files:type_name -> Peer.FilesEntry
+	1, // 3: KnownPeers.known_peers:type_name -> Peer
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_message_proto_init() }
@@ -244,7 +289,7 @@ func file_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_proto_rawDesc), len(file_message_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

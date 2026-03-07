@@ -1,9 +1,13 @@
 package domain
 
-import "net"
+import (
+	"net"
+
+	"github.com/google/uuid"
+)
 
 type Peer struct {
-	ID    []byte
+	ID    uuid.UUID
 	Name  string
 	IP    net.IP
 	Port  int

@@ -10,11 +10,15 @@ message Message {
 }
 
 message Peer {
-	bytes id = 1;
+	UUID ID = 1;
 	int32 port = 2;
 	map<string, string> files = 3;
 }
 
 message KnownPeers {
   repeated Peer known_peers = 1;
+}
+
+message UUID {
+  bytes value = 1;
 }
