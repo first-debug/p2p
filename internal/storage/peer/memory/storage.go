@@ -1,27 +1,28 @@
-package inmemorysessionstorage
+package memory
 
 import (
 	"fmt"
 	"sync"
 
 	"github.com/first-debug/p2p/internal/domain"
-	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
+	"github.com/google/uuid"
 )
 
 type MemoryPeerStorage struct {
 	peersMux sync.RWMutex
-	peers    map[string]domain.Peer
+	peers    map[uuid.UUID]domain.Peer
 }
 
 func NewMemoryPeerStorage() peerstorage.PeerStorage {
 	return &MemoryPeerStorage{
-		peers: make(map[string]domain.Peer),
+		peers: make(map[uuid.UUID]domain.Peer),
 	}
 }
 
 func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 	s.peersMux.Lock()
-	s.peers[string(newPeer.ID)] = newPeer
+	s.peers[newPeer.ID] = newPeer
 	s.peersMux.Unlock()
 	return nil
 }
@@ -39,10 +40,10 @@ func (s *MemoryPeerStorage) GetAll() ([]domain.Peer, error) {
 	return res, nil
 }
 
-func (s *MemoryPeerStorage) GetByID(id []byte) (domain.Peer, error) {
+func (s *MemoryPeerStorage) GetByID(id uuid.UUID) (domain.Peer, error) {
 	s.peersMux.RLock()
 	for i, j := range s.peers {
-		if string(id) == i {
+		if id == i {
 			return j, nil
 		}
 	}
@@ -50,10 +51,10 @@ func (s *MemoryPeerStorage) GetByID(id []byte) (domain.Peer, error) {
 	return domain.Peer{}, fmt.Errorf("cannot find Peer with ID = %v", id)
 }
 
-func (s *MemoryPeerStorage) RemoveByID(id []byte) error {
+func (s *MemoryPeerStorage) RemoveByID(id uuid.UUID) error {
 	s.peersMux.Lock()
 	for i := range s.peers {
-		if string(id) == i {
+		if id == i {
 			delete(s.peers, i)
 			return nil
 		}
