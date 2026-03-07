@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/config"
-	updexplorer "github.com/first-debug/p2p/internal/explorer/UPDExplorer"
+	updexplorer "github.com/first-debug/p2p/internal/explorer/udp"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer/memory"

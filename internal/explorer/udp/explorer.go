@@ -1,4 +1,4 @@
-package updexplorer
+package udp
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/first-debug/p2p/internal/config"
 	"github.com/first-debug/p2p/internal/explorer"
 	pb "github.com/first-debug/p2p/internal/proto"
-	peerstorage "github.com/first-debug/p2p/internal/storage/peer-storage"
+	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -59,7 +59,7 @@ func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstora
 	if err != nil {
 		return nil, err
 	}
-	logger.Println("UPD Explorer started")
+	logger.Println("UDP Explorer started")
 
 	e := &UDPExplorer{
 		listener:    listener,
@@ -98,7 +98,7 @@ func (e *UDPExplorer) startReceive() {
 				var msg pb.Peer
 				err = proto.Unmarshal(data[:n], &msg)
 				if err != nil {
-					logger.Printf("cannot unmarshal UPD request: %v", err)
+					logger.Printf("cannot unmarshal UDP request: %v", err)
 					continue
 				}
 				peer := pb.PbPeerToDomain(&msg)
