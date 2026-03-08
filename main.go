@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"time"
@@ -12,11 +13,9 @@ import (
 	"github.com/first-debug/p2p/internal/domain"
 	udpexplorer "github.com/first-debug/p2p/internal/explorer/udp"
 	"github.com/first-debug/p2p/internal/manager/cli"
-	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer/memory"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session/memory"
-
 	"github.com/google/uuid"
 )
 
@@ -25,30 +24,61 @@ var selfInfo domain.Peer
 func main() {
 	cfg := config.MustLoad()
 
+	logFile, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+
+	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{}))
+
 	selfInfo = domain.Peer{
-		ID:   uuid.New(),
 		Port: cfg.WebSocketPort,
+	}
+
+	if _, err := os.Stat(cfg.IDFile); os.IsExist(err) {
+		idFile, err := os.OpenFile(cfg.IDFile, os.O_RDONLY, 0o600)
+		if err != nil {
+			panic(err)
+		}
+
+		bytes := make([]byte, 36)
+		_, err = idFile.Read(bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		id, err := uuid.ParseBytes(bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		selfInfo.ID = id
+
+		idFile.Close()
+	} else {
+		selfInfo.ID = uuid.New()
+		if err := os.WriteFile(cfg.IDFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
+			panic(err)
+		}
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	defer ctxCancel()
 
-	pStorage := peerstorage.NewMemoryPeerStorage()
-	sStorage := sessionstorage.NewMemorySessionStorage()
+	pStorage := peerstorage.NewMemoryPeerStorage(logger)
+	sStorage := sessionstorage.NewMemorySessionStorage(logger)
 
-	s := websocket.NewWebSocketServer(cfg.WebSocketPort, sStorage, pStorage)
+	s := websocket.NewWebSocketServer(logger, cfg.WebSocketPort, sStorage, pStorage)
 
 	serverErr := make(chan error, 1)
 	go func() {
 		serverErr <- s.Serve()
 	}()
 
-	explorer, err := udpexplorer.NewUDPExplorer(cfg, &pb.Peer{
-		ID:   pb.ToPbUUID(selfInfo.ID),
-		Port: int32(cfg.WebSocketPort),
-	}, pStorage)
+	explorer, err := udpexplorer.NewUDPExplorer(cfg, logger, selfInfo, pStorage)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Error("cannot start Explorer", slog.String("error", err.Error()))
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		s.Stop(ctx)
@@ -70,7 +100,7 @@ func main() {
 		}
 	}()
 
-	client := ws.NewWebSocketClient(selfInfo, sStorage)
+	client := ws.NewWebSocketClient(logger, selfInfo, sStorage)
 
 	mgr := cli.NewCliManager(ctx, selfInfo, pStorage, sStorage, client)
 
@@ -83,13 +113,14 @@ func main() {
 	signal.Notify(sigs, os.Interrupt)
 	select {
 	case err := <-serverErr:
-		log.Printf("failed to serve: %v", err)
+		logger.Error("failed to serve", slog.String("error", err.Error()))
 	case err := <-mgrErr:
-		log.Printf("manager exit status: %v", err)
+		logger.Error("manager exit ", slog.String("status", err.Error()))
 	case sig := <-sigs:
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		s.Stop(ctx)
-		log.Printf("terminating: %v", sig)
+		logger.Info("terminating", slog.Any("signal", sig))
+		fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 	}
 }

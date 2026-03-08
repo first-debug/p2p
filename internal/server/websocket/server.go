@@ -3,10 +3,9 @@ package websocket
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,9 +18,9 @@ import (
 	"github.com/coder/websocket"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[WebSocketServer] ", log.LstdFlags)
-
 type WebSocketServer struct {
+	logger *slog.Logger
+
 	server *http.Server
 	port   int
 
@@ -36,9 +35,10 @@ type WebSocketServer struct {
 	isStopping atomic.Bool
 }
 
-func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage, peerStorage peerstorage.PeerStorage) server.Server {
+func NewWebSocketServer(log *slog.Logger, port int, sessionsStorage sessionstorage.SessionStorage, peerStorage peerstorage.PeerStorage) server.Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &WebSocketServer{
+		logger:          log.With("module", "WebSocketServer"),
 		port:            port,
 		sessionsStorage: sessionsStorage,
 		peerStorage:     peerStorage,
@@ -56,7 +56,7 @@ func NewWebSocketServer(port int, sessionsStorage sessionstorage.SessionStorage,
 		if s.isStopping.Load() {
 			w.WriteHeader(http.StatusNotAcceptable)
 			if _, err := w.Write([]byte("server is stopping")); err != nil {
-				logger.Fatalf("cannot answer on ping: %e", err)
+				s.logger.Error("cannot answer on ping", slog.String("http-error", err.Error()))
 			}
 			return
 		}
@@ -73,7 +73,7 @@ func (s *WebSocketServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	logger.Printf("listening on ws://%v", l.Addr())
+	s.logger.Info("start listening", slog.Any("address", l.Addr()))
 	return s.server.Serve(l)
 }
 
@@ -97,7 +97,7 @@ func (s *WebSocketServer) Stop(ctx context.Context) {
 	case <-localCtx.Done():
 	}
 	if err := s.server.Shutdown(localCtx); err != nil {
-		logger.Fatalf("%e", err)
+		s.logger.Error("error during shutdown server", slog.String("error", err.Error()))
 	}
 }
 
@@ -105,26 +105,25 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 	if s.isStopping.Load() {
 		w.WriteHeader(http.StatusNotAcceptable)
 		if _, err := w.Write([]byte("server is stopping")); err != nil {
-			logger.Fatalf("cannot emit about server status: %e", err)
+			s.logger.Error("cannot emit about server status", slog.String("error", err.Error()))
 		}
 		return
 	}
-	logger.Println("start handler")
 	peerID, err := uuid.Parse(r.Header.Get("PeerID"))
 	if err != nil {
-		logger.Printf("%v", err)
+		s.logger.Error("cannot extract PeerID from header", slog.String("error", err.Error()))
 		return
 	}
 	peer, err := s.peerStorage.GetByID(peerID)
 	if err != nil {
-		logger.Printf("%v", err)
+		s.logger.Error("cannot found Peer in local list", slog.String("error", err.Error()))
 	}
 
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
 	if err != nil {
-		logger.Printf("%v", err)
+		s.logger.Error("cannot connect to peer", slog.String("error", err.Error()), slog.String("PeerID", peer.ID.String()))
 		return
 	}
-	newS := NewWebSocketSession(c, &peer, true, time.Now())
+	newS := NewWebSocketSession(s.logger, c, &peer, true, time.Now())
 	s.sessionsStorage.Add(newS)
 }

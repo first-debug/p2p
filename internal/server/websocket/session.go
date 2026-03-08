@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 type WebSocketSession struct {
 	session.BaseSession
 
+	logger *slog.Logger
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
@@ -31,10 +34,10 @@ type WebSocketSession struct {
 }
 
 // NewWebSocketSession принимает указатель на УЖЕ готовое подключение [websocket.Conn] и остальные необходимые данные для создания сессии [WebSocketSession]
-func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
-	logger.Println("Create new session")
+func NewWebSocketSession(log *slog.Logger, conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
 	ctx, cancel := context.WithCancel(context.Background())
 	ws := &WebSocketSession{
+		logger:      log,
 		ctx:         ctx,
 		ctxCancel:   cancel,
 		connection:  conn,
@@ -46,12 +49,6 @@ func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool,
 	ws.Peer = *peer
 	ws.Incoming = incoming
 	ws.LastDial = lastDial
-
-	logger.Printf("Created new incoming session with ID = %v, Peer = {%v, %v, %d}, lastDial = %v",
-		ws.ID,
-		ws.Peer.ID, ws.Peer.IP, ws.Peer.Port,
-		ws.LastDial,
-	)
 
 	ws.wg.Go(ws.read)
 	ws.wg.Go(ws.write)
@@ -105,7 +102,7 @@ func (s *WebSocketSession) read() {
 			return
 		default:
 			if s.connection == nil {
-				logger.Println("connections closed")
+				s.logger.Error("connections closed")
 				return
 			}
 
@@ -117,25 +114,25 @@ func (s *WebSocketSession) read() {
 			// err := s.rateLimiter.Wait(ctx)
 			// if err != nil {
 			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", err)
+			// 	logger.Error("%v", err)
 			// 	return
 			// }
 
 			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
+				s.logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
-				logger.Printf("%v", err)
 				return
 			}
 			if typ != websocket.MessageBinary {
 				errMsg := "unsupported message type"
+				s.logger.Error(errMsg, slog.Any("type", typ))
 				s.closeWithError(err)
-				logger.Printf("%v", errMsg)
 				return
 			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
-				logger.Printf("%e", err)
+				s.logger.Error(err.Error())
 				s.closeWithError(err)
 			}
 			s.LastDial = time.Now()
@@ -151,11 +148,11 @@ func (s *WebSocketSession) write() {
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
-				logger.Println("read channel closed")
+				s.logger.Error("read channel closed")
 				return
 			}
 			if s.connection == nil {
-				logger.Println("connections closed")
+				s.logger.Error("connections closed")
 				return
 			}
 
@@ -165,20 +162,20 @@ func (s *WebSocketSession) write() {
 			// err := s.rateLimiter.Wait(ctx)
 			// if err != nil {
 			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", err)
+			// 	s.logger.Error("%v", err)
 			// 	return
 			// }
 
 			data, err := proto.Marshal(msg)
 			if err != nil {
-				logger.Printf("%e", err)
+				s.logger.Error(err.Error())
 				s.closeWithError(err)
 				return
 			}
 
 			err = s.connection.Write(ctx, websocket.MessageBinary, data)
 			if err != nil {
-				logger.Printf("%e", err)
+				s.logger.Error("cannot write to WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
 				return
 			}

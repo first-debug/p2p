@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/first-debug/p2p/internal/config"
+	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/explorer"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/storage"
@@ -21,9 +21,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[UDPExplorer] ", log.LstdFlags)
-
 type UDPExplorer struct {
+	logger *slog.Logger
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
@@ -35,7 +35,7 @@ type UDPExplorer struct {
 	peerStorage peerstorage.PeerStorage
 }
 
-func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
+func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
 	if err != nil {
 		return nil, err
@@ -65,18 +65,20 @@ func NewUDPExplorer(cfg *config.Config, peerInfo *pb.Peer, peerStorage peerstora
 	if err != nil {
 		return nil, err
 	}
-	logger.Println("UDP Explorer started")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	e := &UDPExplorer{
+		logger:      log.With("module", "UDPExplorer"),
 		ctx:         ctx,
 		ctxCancel:   cancel,
 		listener:    listener,
 		sender:      sender,
-		peerInfo:    peerInfo,
+		peerInfo:    pb.DomainToPbPeer(&peerInfo),
 		peerStorage: peerStorage,
 	}
+
+	e.logger.Info("UDP Explorer started")
 
 	e.wg.Go(e.startReceive)
 	e.wg.Go(e.checkPeersAvailable)
@@ -104,7 +106,7 @@ func (e *UDPExplorer) Stop() {
 }
 
 func (e *UDPExplorer) startReceive() {
-	logger.Println("starting recive information from other peers")
+	e.logger.Info("starting recive information from other peers")
 	data := make([]byte, 1024)
 	for {
 		select {
@@ -113,14 +115,14 @@ func (e *UDPExplorer) startReceive() {
 		default:
 			n, addr, err := e.listener.ReadFromUDP(data)
 			if err != nil {
-				logger.Printf("read error: %v", err)
+				e.logger.Error("cannot read", slog.String("error", err.Error()))
 				continue
 			}
 
 			// compare local address with addres of incoming request
 			ipParts := strings.Split(e.sender.LocalAddr().String(), ":")
 			if len(ipParts) != 2 {
-				logger.Printf("cannot parse local IPv4 from string '%v'", e.sender.LocalAddr().String())
+				e.logger.Error("cannot parse local IPv4", slog.String("address", e.sender.LocalAddr().String()))
 			}
 			if addr.IP.String() == ipParts[0] {
 				continue
@@ -129,14 +131,14 @@ func (e *UDPExplorer) startReceive() {
 			var msg pb.Peer
 			err = proto.Unmarshal(data[:n], &msg)
 			if err != nil {
-				logger.Printf("cannot unmarshal UDP request: %v", err)
+				e.logger.Error("cannot unmarshal UDP request", slog.String("error", err.Error()))
 				continue
 			}
 			peer := pb.PbPeerToDomain(&msg)
 			peer.IP = addr.IP
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
-				logger.Printf("Cannot add new peer: %v", err)
+				e.logger.Error("Cannot add new peer", slog.String("error", err.Error()))
 			}
 		}
 	}
@@ -151,7 +153,7 @@ func (e *UDPExplorer) checkPeersAvailable() {
 		case <-ticker.C:
 			peers, err := e.peerStorage.GetAll()
 			if err != nil {
-				logger.Printf("%v", err)
+				e.logger.Error("cannot get list of peers", slog.String("error", err.Error()))
 			}
 			for _, i := range peers {
 				res, err := http.Get(fmt.Sprintf("http://%v:%v/ping", i.IP, i.Port))
