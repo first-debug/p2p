@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/config"
+	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/explorer"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/storage"
@@ -34,8 +35,7 @@ type UDPExplorer struct {
 	peerStorage peerstorage.PeerStorage
 }
 
-func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo *pb.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
-	logger = log.With("module", "UDPExplorer")
+func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo *pb.Peer, pee
 		ctxCancel:   cancel,
 		listener:    listener,
 		sender:      sender,
-		peerInfo:    peerInfo,
+		peerInfo:    pb.DomainToPbPeer(&peerInfo),
 		peerStorage: peerStorage,
 	}
 

@@ -74,10 +74,7 @@ func main() {
 		serverErr <- s.Serve()
 	}()
 
-	explorer, err := udpexplorer.NewUDPExplorer(cfg, logger, &pb.Peer{
-		ID:   pb.ToPbUUID(selfInfo.ID),
-		Port: int32(cfg.WebSocketPort),
-	}, pStorage)
+	explorer, err := udpexplorer.NewUDPExplorer(cfg, logger, selfInfo, pStorage)
 	if err != nil {
 		logger.Error("cannot start Explorer", slog.String("error", err.Error()))
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
