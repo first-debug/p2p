@@ -4,7 +4,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -49,7 +48,6 @@ func MustLoad() *Config {
 		}
 		cacheDir += "/p2p/"
 	} else {
-		fmt.Println(2)
 		cacheDir = cfg.CachePath
 		if cacheDir[len(cacheDir)-1] != '/' {
 			cacheDir += "/"
