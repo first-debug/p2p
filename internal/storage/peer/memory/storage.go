@@ -11,18 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
-var logger *slog.Logger
-
 type MemoryPeerStorage struct {
+	logger   *slog.Logger
 	peersMux sync.RWMutex
 	peers    map[uuid.UUID]domain.Peer
 }
 
 func NewMemoryPeerStorage(log *slog.Logger) peerstorage.PeerStorage {
-	logger = log.With("moduel", "MemoryPeerStorage")
-
 	return &MemoryPeerStorage{
-		peers: make(map[uuid.UUID]domain.Peer),
+		logger: log.With("moduel", "MemoryPeerStorage"),
+		peers:  make(map[uuid.UUID]domain.Peer),
 	}
 }
 
@@ -34,7 +32,7 @@ func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 		return storage.ErrAlreadyExists
 	}
 	s.peers[newPeer.ID] = newPeer
-	logger.Info("added new Peer", slog.Any("Peer", newPeer))
+	s.logger.Info("added new Peer", slog.Any("Peer", newPeer))
 	return nil
 }
 

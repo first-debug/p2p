@@ -20,6 +20,8 @@ import (
 type WebSocketSession struct {
 	session.BaseSession
 
+	logger *slog.Logger
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
@@ -30,10 +32,10 @@ type WebSocketSession struct {
 	writeChan   chan *pb.Message
 }
 
-func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
-	logger.Info("Create new session")
+func NewWebSocketSession(log *slog.Logger, conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
 	ctx, cancel := context.WithCancel(context.Background())
 	ws := &WebSocketSession{
+		logger:      log,
 		ctx:         ctx,
 		ctxCancel:   cancel,
 		connection:  conn,
@@ -99,7 +101,7 @@ func (s *WebSocketSession) read() {
 			return
 		default:
 			if s.connection == nil {
-				logger.Info("connections closed")
+				s.logger.Info("connections closed")
 				s.Close(s.ctx)
 				return
 			}
@@ -112,7 +114,7 @@ func (s *WebSocketSession) read() {
 			// err := s.rateLimiter.Wait(ctx)
 			// if err != nil {
 			// 	s.closeWithError(err)
-			// 	logger.Error("%v", err)
+			// 	s.logger.Error("%v", err)
 			// 	return
 			// }
 
@@ -120,19 +122,19 @@ func (s *WebSocketSession) read() {
 
 			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
-				logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
+				s.logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
 				return
 			}
 			if typ != websocket.MessageBinary {
 				errMsg := "unsupported message type"
-				logger.Error(errMsg, slog.Any("type", typ))
+				s.logger.Error(errMsg, slog.Any("type", typ))
 				s.closeWithError(errors.New(errMsg))
 				return
 			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
-				logger.Error(err.Error())
+				s.logger.Error(err.Error())
 				s.closeWithError(err)
 			}
 			s.LastDial = time.Now()
@@ -148,12 +150,12 @@ func (s *WebSocketSession) write() {
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
-				logger.Info("read channel closed")
+				s.logger.Info("read channel closed")
 				s.Close(s.ctx)
 				return
 			}
 			if s.connection == nil {
-				logger.Error("connections closed")
+				s.logger.Error("connections closed")
 				s.Close(s.ctx)
 				return
 			}
@@ -163,21 +165,21 @@ func (s *WebSocketSession) write() {
 
 			err := s.rateLimiter.Wait(ctx)
 			if err != nil {
-				logger.Error(err.Error())
+				s.logger.Error(err.Error())
 				s.closeWithError(err)
 				return
 			}
 
 			data, err := proto.Marshal(msg)
 			if err != nil {
-				logger.Error(err.Error())
+				s.logger.Error(err.Error())
 				s.closeWithError(err)
 				return
 			}
 
 			err = s.connection.Write(ctx, websocket.MessageBinary, data)
 			if err != nil {
-				logger.Error("cannot write to WS connection", slog.String("error", err.Error()))
+				s.logger.Error("cannot write to WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
 				return
 			}

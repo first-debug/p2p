@@ -14,9 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
-var logger *slog.Logger
-
 type MemorySessionStorage struct {
+	logger *slog.Logger
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
@@ -26,10 +26,9 @@ type MemorySessionStorage struct {
 }
 
 func NewMemorySessionStorage(log *slog.Logger) sessionstorage.SessionStorage {
-	logger = log.With("module", "MemoryPeerStorage")
-
 	ctx, cancel := context.WithCancel(context.Background())
 	storage := &MemorySessionStorage{
+		logger:    log.With("module", "MemoryPeerStorage"),
 		ctx:       ctx,
 		ctxCancel: cancel,
 		sessions:  make(map[uuid.UUID]session.Session),
@@ -118,7 +117,7 @@ func (s *MemorySessionStorage) checkSessionsAvailable() {
 		case <-ticker.C:
 			sessions, err := s.GetAll()
 			if err != nil {
-				logger.Error(err.Error())
+				s.logger.Error(err.Error())
 			}
 			s.sessionsMux.Lock()
 			defer s.sessionsMux.Unlock()
