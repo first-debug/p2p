@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	client "github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
@@ -83,17 +82,45 @@ func (m *CliManager) Run() error {
 						fmt.Fprintln(writer, err.Error())
 						continue
 					}
-					ch, err := sess.GetWriteChannel(m.ctx)
+					wCh, err := sess.GetWriteChannel(m.ctx)
+					if err != nil {
+						fmt.Fprintln(writer, err.Error())
+						continue
+					}
+					rCh, err := sess.GetReadChannel(m.ctx)
 					if err != nil {
 						fmt.Fprintln(writer, err.Error())
 						continue
 					}
 					// TODO: add logic for sending messages from the `scanner` to the channel
 
-					time.Sleep(10 * time.Second)
-					ch <- &pb.Message{
-						SendTime: timestamppb.Now(),
-						Message:  fmt.Sprintf("hello from %s", m.selfInfo.ID),
+					go func() {
+						for {
+							select {
+							case <-m.ctx.Done():
+								return
+							case msg, ok := <-rCh:
+								if !ok {
+									return
+								}
+								fmt.Fprintln(writer, "%50s\n", msg.Message)
+							}
+						}
+					}()
+					for {
+						select {
+						case <-m.ctx.Done():
+							break
+						default:
+							if scanner.Scan() {
+								msg := scanner.Text()
+
+								wCh <- &pb.Message{
+									SendTime: timestamppb.Now(),
+									Message:  msg,
+								}
+							}
+						}
 					}
 				} else if input == "list sessions" {
 					sess, err := m.sStorage.GetAll()
