@@ -20,6 +20,7 @@ type Config struct {
 	MulticastInterfaceName string `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
 	CachePath              string `env:"CACHE_PATH"`
 	LogFile                string
+	IDFile                 string
 }
 
 func MustLoad() *Config {
@@ -63,6 +64,7 @@ func MustLoad() *Config {
 	}
 
 	cfg.LogFile = cacheDir + "log.log"
+	cfg.IDFile = cacheDir + "id"
 
 	return cfg
 }

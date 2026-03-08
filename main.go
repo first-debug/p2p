@@ -31,8 +31,34 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{}))
 
 	selfInfo = domain.Peer{
-		ID:   uuid.New(),
 		Port: cfg.WebSocketPort,
+	}
+
+	if _, err := os.Stat(cfg.IDFile); os.IsExist(err) {
+		idFile, err := os.OpenFile(cfg.IDFile, os.O_RDONLY, 0o600)
+		if err != nil {
+			panic(err)
+		}
+
+		bytes := make([]byte, 36)
+		_, err = idFile.Read(bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		id, err := uuid.ParseBytes(bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		selfInfo.ID = id
+
+		idFile.Close()
+	} else {
+		selfInfo.ID = uuid.New()
+		if err := os.WriteFile(cfg.IDFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
+			panic(err)
+		}
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
