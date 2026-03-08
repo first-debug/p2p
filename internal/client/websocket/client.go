@@ -3,9 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/coder/websocket"
@@ -15,14 +14,15 @@ import (
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[WebSocketClient] ", log.LstdFlags)
+var logger *slog.Logger
 
 type WebSocketClient struct {
 	sStorage sessionstorage.SessionStorage
 	selfInfo domain.Peer
 }
 
-func NewWebSocketClient(peer domain.Peer, sStorage sessionstorage.SessionStorage) client.Client {
+func NewWebSocketClient(log *slog.Logger, peer domain.Peer, sStorage sessionstorage.SessionStorage) client.Client {
+	logger = log.With("module", "WebSocketClient")
 	return &WebSocketClient{
 		selfInfo: peer,
 		sStorage: sStorage,

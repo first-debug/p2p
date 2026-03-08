@@ -2,8 +2,7 @@ package memory
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"log/slog"
 	"sync"
 
 	"github.com/first-debug/p2p/internal/domain"
@@ -12,14 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[MemoryPeerStorage] ", log.LstdFlags)
+var logger *slog.Logger
 
 type MemoryPeerStorage struct {
 	peersMux sync.RWMutex
 	peers    map[uuid.UUID]domain.Peer
 }
 
-func NewMemoryPeerStorage() peerstorage.PeerStorage {
+func NewMemoryPeerStorage(log *slog.Logger) peerstorage.PeerStorage {
+	logger = log.With("moduel", "MemoryPeerStorage")
+
 	return &MemoryPeerStorage{
 		peers: make(map[uuid.UUID]domain.Peer),
 	}
@@ -33,7 +34,7 @@ func (s *MemoryPeerStorage) Add(newPeer domain.Peer) error {
 		return storage.ErrAlreadyExists
 	}
 	s.peers[newPeer.ID] = newPeer
-	logger.Printf("added new Peer = %v", newPeer)
+	logger.Info("added new Peer", slog.Any("Peer", newPeer))
 	return nil
 }
 

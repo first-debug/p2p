@@ -3,8 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[MemoryPeerStorage] ", log.LstdFlags)
+var logger *slog.Logger
 
 type MemorySessionStorage struct {
 	ctx       context.Context
@@ -26,7 +25,9 @@ type MemorySessionStorage struct {
 	sessions    map[uuid.UUID]session.Session
 }
 
-func NewMemorySessionStorage() sessionstorage.SessionStorage {
+func NewMemorySessionStorage(log *slog.Logger) sessionstorage.SessionStorage {
+	logger = log.With("module", "MemoryPeerStorage")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	storage := &MemorySessionStorage{
 		ctx:       ctx,
@@ -117,7 +118,7 @@ func (s *MemorySessionStorage) checkSessionsAvailable() {
 		case <-ticker.C:
 			sessions, err := s.GetAll()
 			if err != nil {
-				logger.Printf("%v", err)
+				logger.Error(err.Error())
 			}
 			s.sessionsMux.Lock()
 			defer s.sessionsMux.Unlock()

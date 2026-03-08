@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ type WebSocketSession struct {
 }
 
 func NewWebSocketSession(conn *websocket.Conn, peer *domain.Peer, incoming bool, lastDial time.Time) session.Session {
-	logger.Println("Create new session")
+	logger.Info("Create new session")
 	ctx, cancel := context.WithCancel(context.Background())
 	ws := &WebSocketSession{
 		ctx:         ctx,
@@ -98,7 +99,7 @@ func (s *WebSocketSession) read() {
 			return
 		default:
 			if s.connection == nil {
-				logger.Println("connections closed")
+				logger.Info("connections closed")
 				s.Close(s.ctx)
 				return
 			}
@@ -111,7 +112,7 @@ func (s *WebSocketSession) read() {
 			// err := s.rateLimiter.Wait(ctx)
 			// if err != nil {
 			// 	s.closeWithError(err)
-			// 	logger.Printf("%v", err)
+			// 	logger.Error("%v", err)
 			// 	return
 			// }
 
@@ -119,19 +120,19 @@ func (s *WebSocketSession) read() {
 
 			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
-				logger.Printf("%v", err)
+				logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
 				return
 			}
 			if typ != websocket.MessageBinary {
 				errMsg := "unsupported message type"
-				logger.Printf("%v", errMsg)
+				logger.Error(errMsg, slog.Any("type", typ))
 				s.closeWithError(errors.New(errMsg))
 				return
 			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
-				logger.Printf("%e", err)
+				logger.Error(err.Error())
 				s.closeWithError(err)
 			}
 			s.LastDial = time.Now()
@@ -147,12 +148,12 @@ func (s *WebSocketSession) write() {
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
-				logger.Println("read channel closed")
+				logger.Info("read channel closed")
 				s.Close(s.ctx)
 				return
 			}
 			if s.connection == nil {
-				logger.Println("connections closed")
+				logger.Error("connections closed")
 				s.Close(s.ctx)
 				return
 			}
@@ -162,21 +163,21 @@ func (s *WebSocketSession) write() {
 
 			err := s.rateLimiter.Wait(ctx)
 			if err != nil {
-				logger.Printf("%v", err)
+				logger.Error(err.Error())
 				s.closeWithError(err)
 				return
 			}
 
 			data, err := proto.Marshal(msg)
 			if err != nil {
-				logger.Printf("%e", err)
+				logger.Error(err.Error())
 				s.closeWithError(err)
 				return
 			}
 
 			err = s.connection.Write(ctx, websocket.MessageBinary, data)
 			if err != nil {
-				logger.Printf("%e", err)
+				logger.Error("cannot write to WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
 				return
 			}
