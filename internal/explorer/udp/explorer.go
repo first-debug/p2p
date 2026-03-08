@@ -154,7 +154,7 @@ func (e *UDPExplorer) checkPeersAvailable() {
 				logger.Printf("%v", err)
 			}
 			for _, i := range peers {
-				res, err := http.Get(fmt.Sprintf("%v:%v/ping", i.IP, i.Port))
+				res, err := http.Get(fmt.Sprintf("http://%v:%v/ping", i.IP, i.Port))
 				if err == nil && res.StatusCode == http.StatusOK {
 					continue
 				}
