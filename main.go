@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,7 +22,13 @@ var selfInfo domain.Peer
 func main() {
 	cfg := config.MustLoad()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	logFile, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+
+	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{}))
 
 	selfInfo = domain.Peer{
 		ID:   uuid.New(),
@@ -78,5 +85,6 @@ func main() {
 		defer cancel()
 		s.Stop(ctx)
 		logger.Info("terminating", slog.Any("signal", sig))
+		fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 	}
 }

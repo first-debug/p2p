@@ -4,6 +4,8 @@ package config
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
@@ -16,6 +18,8 @@ type Config struct {
 	MulticastAddress       string `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
 	MulticastPort          int    `env:"MULTICAST_PORT" env-default:"8001"`
 	MulticastInterfaceName string `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
+	CachePath              string `env:"CACHE_PATH"`
+	LogFile                string
 }
 
 func MustLoad() *Config {
@@ -25,13 +29,40 @@ func MustLoad() *Config {
 	flag.StringVar(&envPath, "env-file", "", "explicitly specifying the env file to use")
 	flag.Parse()
 
-	if err := godotenv.Load(envPath); envPath != "" && err != nil {
+	err := godotenv.Load(envPath)
+	if envPath != "" && err != nil {
 		panic(err.Error())
 	}
 
-	if err := cleanenv.ReadEnv(cfg); err != nil {
+	err = cleanenv.ReadEnv(cfg)
+	if err != nil {
 		panic(err.Error())
 	}
+
+	var cacheDir string
+
+	if cfg.CachePath == "" {
+		cacheDir, err = os.UserCacheDir()
+		if err != nil {
+			panic(err)
+		}
+		cacheDir += "/p2p/"
+	} else {
+		fmt.Println(2)
+		cacheDir = cfg.CachePath
+		if cacheDir[len(cacheDir)-1] != '/' {
+			cacheDir += "/"
+		}
+	}
+
+	_, stat := os.Stat(cacheDir)
+	if os.IsNotExist(stat) {
+		if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+			panic(err)
+		}
+	}
+
+	cfg.LogFile = cacheDir + "log.log"
 
 	return cfg
 }
