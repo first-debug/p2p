@@ -86,13 +86,8 @@ func (s *WebSocketSession) IsOpen() bool {
 	return s.connection != nil
 }
 
-func (s *WebSocketSession) Close(ctx context.Context) {
-	s.ctxCancel()
-	if s.connection != nil {
-		s.connection.Close(websocket.StatusNormalClosure, "manual close")
-		s.connection = nil
-	}
-	s.wg.Wait()
+func (s *WebSocketSession) Close(context.Context) {
+	s.closeWithError(nil)
 }
 
 func (s *WebSocketSession) read() {
@@ -109,16 +104,6 @@ func (s *WebSocketSession) read() {
 
 			msg := &pb.Message{}
 
-			// ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
-			// defer cancel()
-
-			// err := s.rateLimiter.Wait(ctx)
-			// if err != nil {
-			// 	s.closeWithError(err)
-			// 	logger.Error("%v", err)
-			// 	return
-			// }
-
 			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
 				s.logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
@@ -129,7 +114,7 @@ func (s *WebSocketSession) read() {
 			if typ != websocket.MessageBinary {
 				errMsg := "unsupported message type"
 				s.logger.Error(errMsg, slog.Any("type", typ))
-				s.closeWithError(err)
+				s.closeWithError(errors.New(errMsg))
 				s.Close(s.ctx)
 				return
 			}
@@ -166,12 +151,13 @@ func (s *WebSocketSession) write() {
 			ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
 			defer cancel()
 
-			// err := s.rateLimiter.Wait(ctx)
-			// if err != nil {
-			// 	s.closeWithError(err)
-			// 	s.logger.Error("%v", err)
-			// 	return
-			// }
+			err := s.rateLimiter.Wait(ctx)
+			if err != nil {
+				s.logger.Error(err.Error())
+				s.closeWithError(err)
+				s.Close(s.ctx)
+				return
+			}
 
 			data, err := proto.Marshal(msg)
 			if err != nil {
@@ -196,8 +182,18 @@ func (s *WebSocketSession) write() {
 func (s *WebSocketSession) closeWithError(err error) {
 	s.ctxCancel()
 	if s.connection != nil {
-		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
+		if err != nil {
+			s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
+		} else {
+			s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		}
 		s.connection = nil
+	}
+	if _, ok := <-s.readChan; ok {
+		close(s.readChan)
+	}
+	if _, ok := <-s.writeChan; ok {
+		close(s.writeChan)
 	}
 	s.wg.Wait()
 }
