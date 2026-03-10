@@ -125,5 +125,7 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	newS := NewWebSocketSession(s.logger, c, &peer, true, time.Now())
-	s.sessionsStorage.Add(newS)
+	if err = s.sessionsStorage.Add(newS); err != nil {
+		s.logger.Error("cannot save new Session", slog.String("error", err.Error()))
+	}
 }
