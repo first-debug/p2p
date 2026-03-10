@@ -1,4 +1,4 @@
-package client
+package websocket
 
 import (
 	"context"
@@ -86,12 +86,7 @@ func (s *WebSocketSession) IsOpen() bool {
 }
 
 func (s *WebSocketSession) Close(context.Context) {
-	s.ctxCancel()
-	if s.connection != nil {
-		s.connection.Close(websocket.StatusNormalClosure, "manual close")
-		s.connection = nil
-	}
-	s.wg.Wait()
+	s.closeWithError(nil)
 }
 
 func (s *WebSocketSession) read() {
@@ -101,24 +96,12 @@ func (s *WebSocketSession) read() {
 			return
 		default:
 			if s.connection == nil {
-				s.logger.Info("connections closed")
+				s.logger.Error("connections closed")
 				s.Close(s.ctx)
 				return
 			}
 
 			msg := &pb.Message{}
-
-			// ctx, cancel := context.WithTimeout(s.ctx, time.Second*10)
-			// defer cancel()
-
-			// err := s.rateLimiter.Wait(ctx)
-			// if err != nil {
-			// 	s.closeWithError(err)
-			// 	s.logger.Error("%v", err)
-			// 	return
-			// }
-
-			var data []byte
 
 			typ, data, err := s.connection.Read(s.ctx)
 			if err != nil {
@@ -154,7 +137,7 @@ func (s *WebSocketSession) write() {
 			return
 		case msg, ok := <-s.writeChan:
 			if !ok {
-				s.logger.Info("read channel closed")
+				s.logger.Error("read channel closed")
 				s.Close(s.ctx)
 				return
 			}
@@ -208,8 +191,7 @@ func (s *WebSocketSession) ping() {
 			defer ctxCancel()
 
 			if err := s.connection.Ping(ctx); err != nil {
-				s.ctxCancel()
-				s.connection = nil
+				s.Close(s.ctx)
 			}
 		}
 	}
@@ -218,7 +200,11 @@ func (s *WebSocketSession) ping() {
 func (s *WebSocketSession) closeWithError(err error) {
 	s.ctxCancel()
 	if s.connection != nil {
-		s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
+		if err != nil {
+			s.connection.Close(websocket.StatusInternalError, fmt.Sprintf("internal error: %v", err))
+		} else {
+			s.connection.Close(websocket.StatusNormalClosure, "manual close")
+		}
 		s.connection = nil
 	}
 	s.wg.Wait()
