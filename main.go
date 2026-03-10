@@ -38,7 +38,12 @@ func main() {
 		Port: cfg.WebSocketPort,
 	}
 
-	if _, err := os.Stat(cfg.IDFile); os.IsExist(err) {
+	if _, err := os.Stat(cfg.IDFile); os.IsNotExist(err) {
+		selfInfo.ID = uuid.New()
+		if err := os.WriteFile(cfg.IDFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
+			panic(err)
+		}
+	} else {
 		idFile, err := os.OpenFile(cfg.IDFile, os.O_RDONLY, 0o600)
 		if err != nil {
 			panic(err)
@@ -58,12 +63,9 @@ func main() {
 		selfInfo.ID = id
 
 		idFile.Close()
-	} else {
-		selfInfo.ID = uuid.New()
-		if err := os.WriteFile(cfg.IDFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
-			panic(err)
-		}
 	}
+
+	fmt.Printf("Self ID: %v\n", selfInfo.ID)
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	defer ctxCancel()
