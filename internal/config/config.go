@@ -4,6 +4,7 @@ package config
 
 import (
 	"flag"
+	"log/slog"
 	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -13,11 +14,12 @@ import (
 type Config struct {
 	// PeerName               string `env:"PEER_NAME"`
 	// PeerPort               int    `env:"PEER_PORT" env-default:"8001"`
-	WebSocketPort          int    `env:"WEBSOCKET_PORT" env-default:"8001"`
-	MulticastAddress       string `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
-	MulticastPort          int    `env:"MULTICAST_PORT" env-default:"8001"`
-	MulticastInterfaceName string `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
-	CachePath              string `env:"CACHE_PATH"`
+	LogLevel               slog.Level `env:"LOG_LEVEL" env-default:"INFO"`
+	WebSocketPort          int        `env:"WEBSOCKET_PORT" env-default:"8001"`
+	MulticastAddress       string     `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
+	MulticastPort          int        `env:"MULTICAST_PORT" env-default:"8001"`
+	MulticastInterfaceName string     `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
+	CachePath              string     `env:"CACHE_PATH"`
 	LogFile                string
 	IDFile                 string
 }
