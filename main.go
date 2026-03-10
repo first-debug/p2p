@@ -30,7 +30,9 @@ func main() {
 	}
 	defer logFile.Close()
 
-	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{}))
+	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{
+		Level: cfg.LogLevel,
+	}))
 
 	selfInfo = domain.Peer{
 		Port: cfg.WebSocketPort,
