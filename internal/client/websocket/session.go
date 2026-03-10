@@ -124,18 +124,22 @@ func (s *WebSocketSession) read() {
 			if err != nil {
 				s.logger.Error("cannot read from WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
+				s.Close(s.ctx)
 				return
 			}
 			if typ != websocket.MessageBinary {
 				errMsg := "unsupported message type"
 				s.logger.Error(errMsg, slog.Any("type", typ))
 				s.closeWithError(errors.New(errMsg))
+				s.Close(s.ctx)
 				return
 			}
 
 			if err := proto.Unmarshal(data, msg); err != nil {
 				s.logger.Error(err.Error())
 				s.closeWithError(err)
+				s.Close(s.ctx)
+				return
 			}
 			s.LastDial = time.Now()
 			s.readChan <- msg
@@ -167,6 +171,7 @@ func (s *WebSocketSession) write() {
 			if err != nil {
 				s.logger.Error(err.Error())
 				s.closeWithError(err)
+				s.Close(s.ctx)
 				return
 			}
 
@@ -174,6 +179,7 @@ func (s *WebSocketSession) write() {
 			if err != nil {
 				s.logger.Error(err.Error())
 				s.closeWithError(err)
+				s.Close(s.ctx)
 				return
 			}
 
@@ -181,6 +187,7 @@ func (s *WebSocketSession) write() {
 			if err != nil {
 				s.logger.Error("cannot write to WS connection", slog.String("error", err.Error()))
 				s.closeWithError(err)
+				s.Close(s.ctx)
 				return
 			}
 			s.LastDial = time.Now()
