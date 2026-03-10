@@ -9,6 +9,8 @@ services:
     networks:
         - p2p
     command: sleep inf
+    volumes:
+      - ./data/p2p-1/:/data/p2p/
   p2p-2:
     image: p2p:latest
     container_name: p2p-2
@@ -19,6 +21,8 @@ services:
     networks:
         - p2p
     command: sleep inf
+    volumes:
+      - ./data/p2p-2/:/data/p2p/
 
 networks:
   p2p:

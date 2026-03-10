@@ -28,7 +28,7 @@ type MemorySessionStorage struct {
 func NewMemorySessionStorage(log *slog.Logger) sessionstorage.SessionStorage {
 	ctx, cancel := context.WithCancel(context.Background())
 	storage := &MemorySessionStorage{
-		logger:    log.With("module", "MemoryPeerStorage"),
+		logger:    log.With("module", "MemorySessionStorage"),
 		ctx:       ctx,
 		ctxCancel: cancel,
 		sessions:  make(map[uuid.UUID]session.Session),
@@ -61,17 +61,19 @@ func (s *MemorySessionStorage) GetAll() ([]session.Session, error) {
 		res[count] = j
 		count--
 	}
+
 	return res, nil
 }
 
 func (s *MemorySessionStorage) GetByID(id uuid.UUID) (session.Session, error) {
 	s.sessionsMux.RLock()
+	defer s.sessionsMux.RUnlock()
+
 	for i, j := range s.sessions {
 		if id == i {
 			return j, nil
 		}
 	}
-	s.sessionsMux.RUnlock()
 	return nil, fmt.Errorf("cannot find Session with ID = %v", id)
 }
 
@@ -122,7 +124,7 @@ func (s *MemorySessionStorage) checkSessionsAvailable() {
 			s.sessionsMux.Lock()
 			defer s.sessionsMux.Unlock()
 			for _, i := range sessions {
-				if i.IsOpen() {
+				if !i.IsOpen() {
 					delete(s.sessions, i.GetID())
 				}
 			}
