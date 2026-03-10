@@ -207,5 +207,11 @@ func (s *WebSocketSession) closeWithError(err error) {
 		}
 		s.connection = nil
 	}
+	if _, ok := <-s.readChan; ok {
+		close(s.readChan)
+	}
+	if _, ok := <-s.writeChan; ok {
+		close(s.writeChan)
+	}
 	s.wg.Wait()
 }
