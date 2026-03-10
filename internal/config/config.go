@@ -39,30 +39,27 @@ func MustLoad() *Config {
 		panic(err.Error())
 	}
 
-	var cacheDir string
-
 	if cfg.CachePath == "" {
-		cacheDir, err = os.UserCacheDir()
+		cfg.CachePath, err = os.UserCacheDir()
 		if err != nil {
 			panic(err)
 		}
-		cacheDir += "/p2p/"
+		cfg.CachePath += "/p2p/"
 	} else {
-		cacheDir = cfg.CachePath
-		if cacheDir[len(cacheDir)-1] != '/' {
-			cacheDir += "/"
+		if cfg.CachePath[len(cfg.CachePath)-1] != '/' {
+			cfg.CachePath += "/"
 		}
 	}
 
-	_, stat := os.Stat(cacheDir)
+	_, stat := os.Stat(cfg.CachePath)
 	if os.IsNotExist(stat) {
-		if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		if err := os.MkdirAll(cfg.CachePath, 0o755); err != nil {
 			panic(err)
 		}
 	}
 
-	cfg.LogFile = cacheDir + "log.log"
-	cfg.IDFile = cacheDir + "id"
+	cfg.LogFile = cfg.CachePath + "log.log"
+	cfg.IDFile = cfg.CachePath + "id"
 
 	return cfg
 }

@@ -22,6 +22,8 @@ var selfInfo domain.Peer
 func main() {
 	cfg := config.MustLoad()
 
+	fmt.Printf("Using cache directory: %v\n", cfg.CachePath)
+
 	logFile, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 	if err != nil {
 		panic(err)
