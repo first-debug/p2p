@@ -3,7 +3,9 @@
 package config
 
 import (
+	"errors"
 	"flag"
+	"io/fs"
 	"log/slog"
 	"os"
 
@@ -31,8 +33,16 @@ func MustLoad() *Config {
 	flag.StringVar(&envPath, "env-file", "", "explicitly specifying the env file to use")
 	flag.Parse()
 
-	err := godotenv.Load(envPath)
-	if envPath != "" && err != nil {
+	var err error
+	if envPath == "" {
+		err = godotenv.Load()
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+	} else {
+		err = godotenv.Load(envPath)
+	}
+	if err != nil {
 		panic(err.Error())
 	}
 
