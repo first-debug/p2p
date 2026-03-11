@@ -1,11 +1,10 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"log"
-	"os"
+	"io"
+	"log/slog"
 	"strings"
 
 	client "github.com/first-debug/p2p/internal/client"
@@ -14,160 +13,146 @@ import (
 	pb "github.com/first-debug/p2p/internal/proto"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/chzyer/readline"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[CliManager] ", log.LstdFlags)
+type inputMode int
+
+const (
+	colorRed    = "\033[0;31m"
+	colorGreen  = "\033[0;32m"
+	colorYellow = "\033[0;33m"
+	colorBlue   = "\033[0;34m"
+	colorNone   = "\033[0m"
+)
+
+const (
+	menu inputMode = iota
+	messaging
+)
+
+var (
+	menuPromt              string = colorizeText(">> ", colorGreen)
+	messagingTemplatePromt string = colorizeText("(%s)>> ", colorGreen)
+)
 
 type CliManager struct {
 	ctx      context.Context
+	logger   *slog.Logger
 	selfInfo domain.Peer
 	pStorage peerstorage.PeerStorage
 	sStorage sessionstorage.SessionStorage
 	client   client.Client
+
+	rl               *readline.Instance
+	currentMode      inputMode
+	writer           io.Writer
+	currentWriteCh   chan<- *pb.Message
+	currentReadCh    <-chan *pb.Message
+	sessionCtx       context.Context
+	sessionCtxCancel context.CancelFunc
 }
 
-func NewCliManager(ctx context.Context, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, c client.Client) manager.Manager {
+func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, c client.Client) manager.Manager {
 	return &CliManager{
 		ctx:      ctx,
+		logger:   log,
 		selfInfo: peer,
 		pStorage: p,
 		sStorage: s,
 		client:   c,
+
+		currentMode: menu,
 	}
 }
 
 func (m *CliManager) Run() error {
-	scanner := bufio.NewScanner(os.Stdin)
-	writer := bufio.NewWriter(os.Stdout)
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:          menuPromt,
+		HistoryFile:     "/tmp/readline.tmp",
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+
+		HistorySearchFold: true,
+	})
+	if err != nil {
+		return err
+	}
+	m.rl = rl
+	defer m.rl.Close()
+	m.writer = m.rl.Stdout()
+
 	for {
-		writer.Flush()
 		select {
 		case <-m.ctx.Done():
 			return nil
 		default:
-			if scanner.Scan() {
-				input := scanner.Text()
-				if input == "list peers" {
-					peers, err := m.pStorage.GetAll()
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-					} else {
-						fmt.Fprint(writer, "[")
-						for _, v := range peers {
-							fmt.Fprintln(writer)
-							fmt.Fprintln(writer, "\t", v.ID)
-						}
-						fmt.Fprintln(writer, "]")
-					}
-				} else if strings.Contains(input, "connect ") {
-					strs := strings.Split(input, " ")
-					if len(strs) != 2 {
-						fmt.Fprintln(writer, "too many arguments for `connect` command")
-						continue
-					}
-					id, err := uuid.Parse(strs[1])
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					peer, err := m.pStorage.GetByID(id)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					sess, err := m.client.Connect(context.Background(), &peer)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					wCh, err := sess.GetWriteChannel(m.ctx)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					rCh, err := sess.GetReadChannel(m.ctx)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					// TODO: add logic for sending messages from the `scanner` to the channel
-
-					go func() {
-						for {
-							select {
-							case <-m.ctx.Done():
-								return
-							case msg, ok := <-rCh:
-								if !ok {
-									return
-								}
-								fmt.Fprintln(writer, "%50s\n", msg.Message)
-							}
-						}
-					}()
-					for {
-						select {
-						case <-m.ctx.Done():
-							break
-						default:
-							if scanner.Scan() {
-								msg := scanner.Text()
-
-								wCh <- &pb.Message{
-									SendTime: timestamppb.Now(),
-									Message:  msg,
-								}
-							}
-						}
-					}
-				} else if input == "list sessions" {
-					sess, err := m.sStorage.GetAll()
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-					} else {
-						fmt.Fprint(writer, "[")
-						for _, v := range sess {
-							fmt.Fprintln(writer)
-							fmt.Fprintln(writer, "\t", v.GetID())
-						}
-						fmt.Fprintln(writer, "]")
-					}
-				} else if strings.Contains(input, "attach ") {
-					strs := strings.Split(input, " ")
-					if len(strs) != 2 {
-						fmt.Fprintln(writer, "too many arguments for `attach` command")
-						continue
-					}
-					id, err := uuid.Parse(strs[1])
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					sess, err := m.sStorage.GetByID(id)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					ch, err := sess.GetReadChannel(m.ctx)
-					if err != nil {
-						fmt.Fprintln(writer, err.Error())
-						continue
-					}
-					select {
-					case <-m.ctx.Done():
-						break
-					case v, ok := <-ch:
-						if !ok {
-							fmt.Fprintln(writer, "read channel close")
-						}
-						fmt.Fprintln(writer, sess.GetID().String(), "(", v.SendTime.String(), "): ", v.Message)
-					}
-				} else {
-					fmt.Fprintln(writer, "not supported command")
+			input, err := m.rl.Readline()
+			if err != nil {
+				if err == readline.ErrInterrupt {
+					fmt.Fprintln(m.writer, colorizeText("\nUse '/quit' in session or 'exit' to close CLI", colorYellow))
+					continue
 				}
+				return err
+			}
+			input = strings.TrimSpace(input)
+
+			switch m.currentMode {
+			case menu:
+				err := m.handelMenu(input)
+				if err != nil {
+					return err
+				}
+			case messaging:
+				m.handelMessage(input)
 			}
 		}
+	}
+}
+
+func (m *CliManager) handelMenu(input string) (err error) {
+	if input == "list peers" {
+		m.catchListPeers()
+	} else if strings.HasPrefix(input, "connect ") {
+		m.catchConnectCommand(input)
+	} else if input == "list sessions" {
+		m.catchListSessions()
+	} else if strings.HasPrefix(input, "attach ") {
+		m.catchAttachCommand(input)
+	} else if input == "exit" {
+		fmt.Fprintln(m.writer, colorizeText("exit", colorGreen))
+		return &readline.InterruptError{}
+	} else {
+		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), "not supported command")
+	}
+	return
+}
+
+func (m *CliManager) handelMessage(msg string) {
+	m.logger.Debug("ждём ввода пользователя")
+	if msg == "" {
+		return
+	}
+
+	if msg == "/quit" {
+		m.logger.Debug("пользователь ввёл /quit => выход из сессии")
+		fmt.Fprintln(m.writer, colorizeText("detached from the session", colorYellow))
+		m.setMenuMode()
+		m.sessionCtxCancel()
+		return
+	}
+
+	sendTime := timestamppb.Now()
+
+	fmt.Fprintf(
+		m.writer, "\033[F\r%s\n%s\n",
+		colorizeText(sendTime.AsTime().String(), colorBlue), msg,
+	)
+
+	m.currentWriteCh <- &pb.Message{
+		SendTime: sendTime,
+		Message:  msg,
 	}
 }
