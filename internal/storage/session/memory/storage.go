@@ -122,12 +122,12 @@ func (s *MemorySessionStorage) checkSessionsAvailable() {
 				s.logger.Error(err.Error())
 			}
 			s.sessionsMux.Lock()
-			defer s.sessionsMux.Unlock()
 			for _, i := range sessions {
 				if !i.IsOpen() {
 					delete(s.sessions, i.GetID())
 				}
 			}
+			s.sessionsMux.Unlock()
 		}
 	}
 }
