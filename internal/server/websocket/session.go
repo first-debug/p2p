@@ -78,6 +78,10 @@ func (s *WebSocketSession) GetWriteChannel(context.Context) (chan<- *pb.Message,
 	return s.writeChan, nil
 }
 
+func (s *WebSocketSession) GetPeerID() uuid.UUID {
+	return s.Peer.ID
+}
+
 func (s *WebSocketSession) IsIncoming() bool {
 	return s.Incoming
 }
@@ -189,10 +193,14 @@ func (s *WebSocketSession) closeWithError(err error) {
 		}
 		s.connection = nil
 	}
-	if _, ok := <-s.readChan; ok {
+	select {
+	case <-s.readChan:
+	default:
 		close(s.readChan)
 	}
-	if _, ok := <-s.writeChan; ok {
+	select {
+	case <-s.writeChan:
+	default:
 		close(s.writeChan)
 	}
 	s.wg.Wait()
