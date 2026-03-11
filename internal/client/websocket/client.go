@@ -1,30 +1,29 @@
-package client
+package websocket
 
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
-	"os"
 	"time"
-
-	wsserver "github.com/first-debug/p2p/internal/server/websocket"
 
 	"github.com/coder/websocket"
 	"github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/session"
-	sessionstorage "github.com/first-debug/p2p/internal/storage/session-storage"
+	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 )
 
-var logger log.Logger = *log.New(os.Stderr, "[WebSocketClient] ", log.LstdFlags)
-
 type WebSocketClient struct {
+	logger   *slog.Logger
 	sStorage sessionstorage.SessionStorage
+	selfInfo domain.Peer
 }
 
-func NewWebSocketClient(sStorage sessionstorage.SessionStorage) client.Client {
+func NewWebSocketClient(log *slog.Logger, peer domain.Peer, sStorage sessionstorage.SessionStorage) client.Client {
 	return &WebSocketClient{
+		logger:   log.With("module", "WebSocketClient"),
+		selfInfo: peer,
 		sStorage: sStorage,
 	}
 }
@@ -37,13 +36,13 @@ func (c *WebSocketClient) Connect(ctx context.Context, peer *domain.Peer) (sessi
 	}
 	conn, _, err := websocket.Dial(ctx, url.String(), &websocket.DialOptions{
 		HTTPHeader: map[string][]string{
-			"PeerID": {string(peer.ID)},
+			"PeerID": {c.selfInfo.ID.String()},
 		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
-	newSession := wsserver.NewWebSocketSession(conn, peer, false, time.Now())
+	newSession := NewWebSocketSession(c.logger, conn, peer, false, time.Now())
 	if c.sStorage != nil {
 		if err := c.sStorage.Add(newSession); err != nil {
 			conn.Close(websocket.StatusInternalError, "failed to add session")

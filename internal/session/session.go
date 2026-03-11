@@ -25,6 +25,7 @@ type Session interface {
 	GetLastDial() time.Time
 	GetReadChannel(context.Context) (<-chan *pb.Message, error)
 	GetWriteChannel(context.Context) (chan<- *pb.Message, error)
+	GetPeerID() uuid.UUID
 	IsIncoming() bool
 	IsOpen() bool
 	Close(context.Context)

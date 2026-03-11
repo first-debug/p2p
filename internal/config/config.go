@@ -3,7 +3,11 @@
 package config
 
 import (
+	"errors"
 	"flag"
+	"io/fs"
+	"log/slog"
+	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
@@ -12,10 +16,14 @@ import (
 type Config struct {
 	// PeerName               string `env:"PEER_NAME"`
 	// PeerPort               int    `env:"PEER_PORT" env-default:"8001"`
-	WebSocketPort          int    `env:"WEBSOCKET_PORT" env-default:"8001"`
-	MulticastAddress       string `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
-	MulticastPort          int    `env:"MULTICAST_PORT" env-default:"8001"`
-	MulticastInterfaceName string `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
+	LogLevel               slog.Level `env:"LOG_LEVEL" env-default:"INFO"`
+	WebSocketPort          int        `env:"WEBSOCKET_PORT" env-default:"8001"`
+	MulticastAddress       string     `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
+	MulticastPort          int        `env:"MULTICAST_PORT" env-default:"8001"`
+	MulticastInterfaceName string     `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
+	CachePath              string     `env:"CACHE_PATH"`
+	LogFile                string
+	IDFile                 string
 }
 
 func MustLoad() *Config {
@@ -25,13 +33,45 @@ func MustLoad() *Config {
 	flag.StringVar(&envPath, "env-file", "", "explicitly specifying the env file to use")
 	flag.Parse()
 
-	if err := godotenv.Load(envPath); envPath != "" && err != nil {
+	var err error
+	if envPath == "" {
+		err = godotenv.Load()
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+	} else {
+		err = godotenv.Load(envPath)
+	}
+	if err != nil {
 		panic(err.Error())
 	}
 
-	if err := cleanenv.ReadEnv(cfg); err != nil {
+	err = cleanenv.ReadEnv(cfg)
+	if err != nil {
 		panic(err.Error())
 	}
+
+	if cfg.CachePath == "" {
+		cfg.CachePath, err = os.UserCacheDir()
+		if err != nil {
+			panic(err)
+		}
+		cfg.CachePath += "/p2p/"
+	} else {
+		if cfg.CachePath[len(cfg.CachePath)-1] != '/' {
+			cfg.CachePath += "/"
+		}
+	}
+
+	_, stat := os.Stat(cfg.CachePath)
+	if os.IsNotExist(stat) {
+		if err := os.MkdirAll(cfg.CachePath, 0o755); err != nil {
+			panic(err)
+		}
+	}
+
+	cfg.LogFile = cfg.CachePath + "log.log"
+	cfg.IDFile = cfg.CachePath + "id"
 
 	return cfg
 }
