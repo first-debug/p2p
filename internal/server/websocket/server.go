@@ -84,7 +84,7 @@ func (s *WebSocketServer) Stop(ctx context.Context) {
 	localCtx, ctxCancel := context.WithTimeout(ctx, time.Second*5)
 	defer ctxCancel()
 
-	// s.sessionsStorage.CloseAllByType(true)
+	s.sessionsStorage.CloseAllByType(localCtx, true)
 
 	end := make(chan any)
 	go func() {
@@ -103,7 +103,7 @@ func (s *WebSocketServer) Stop(ctx context.Context) {
 
 func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) {
 	if s.isStopping.Load() {
-		w.WriteHeader(http.StatusNotAcceptable)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		if _, err := w.Write([]byte("server is stopping")); err != nil {
 			s.logger.Error("cannot emit about server status", slog.String("error", err.Error()))
 		}
@@ -117,6 +117,8 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 	peer, err := s.peerStorage.GetByID(peerID)
 	if err != nil {
 		s.logger.Error("cannot found Peer in local list", slog.String("error", err.Error()))
+		w.WriteHeader(http.StatusForbidden)
+		return
 	}
 
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
