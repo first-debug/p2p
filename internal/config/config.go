@@ -19,6 +19,8 @@ type Config struct {
 	MulticastAddress       string     `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
 	MulticastPort          int        `env:"MULTICAST_PORT" env-default:"8001"`
 	MulticastInterfaceName string     `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
+	BroadcastAddress       string     `env:"BROADCAST_ADDRESS" env-default:"235.5.5.11"`
+	BroadcastPort          int        `env:"BROADCAST_PORT" env-default:"8001"`
 	CachePath              string     `env:"CACHE_PATH"`
 	LogFile                string
 	IDFile                 string
