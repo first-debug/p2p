@@ -121,7 +121,11 @@ func main() {
 	case err := <-serverErr:
 		logger.Error("failed to serve", slog.String("error", err.Error()))
 	case err := <-mgrErr:
-		logger.Error("manager exit ", slog.String("status", err.Error()))
+		if err != nil {
+			logger.Error("manager exit with error", slog.String("error", err.Error()))
+			break
+		}
+		logger.Info("close manager")
 	case sig := <-sigs:
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()

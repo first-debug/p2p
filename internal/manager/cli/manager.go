@@ -103,7 +103,7 @@ func (m *CliManager) Run() error {
 			case menu:
 				err := m.handelMenu(input)
 				if err != nil {
-					return err
+					return nil
 				}
 			case messaging:
 				m.handelMessage(input)
