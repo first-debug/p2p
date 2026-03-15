@@ -31,7 +31,7 @@ func MustLoad() *Config {
 
 	cfg.ConfigDir = strings.TrimRight(strings.TrimRight(configDir, "/"), "\\") + "/p2p/"
 
-	if err := makeConfigDirIfNotExists(cfg.ConfigDir, cfg); err != nil {
+	if err := makeConfigDirIfNotExists(cfg.ConfigDir); err != nil {
 		panic(err)
 	}
 
@@ -46,7 +46,7 @@ func MustLoad() *Config {
 	return cfg
 }
 
-func makeConfigDirIfNotExists(configDir string, config *Config) (err error) {
+func makeConfigDirIfNotExists(configDir string) (err error) {
 	_, err = os.Stat(configDir)
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(configDir, 0o755); err != nil {
@@ -75,22 +75,23 @@ func parseConfigFile(ConfigFile string, config *Config) error {
 				Port:    8001,
 			},
 		}
-		if file, err = createConfigFile(ConfigFile, config); err != nil {
+
+		if err = createConfigFile(ConfigFile, config); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func createConfigFile(ConfigFile string, config *Config) (*os.File, error) {
+func createConfigFile(ConfigFile string, config *Config) error {
 	file, err := os.Create(ConfigFile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err = yaml.NewEncoder(file).Encode(config); err != nil {
-		return nil, err
+		return err
 	}
 
-	return file, nil
+	return nil
 }
