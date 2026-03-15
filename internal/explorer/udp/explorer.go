@@ -36,49 +36,32 @@ type UDPExplorer struct {
 }
 
 func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, peerStorage peerstorage.PeerStorage) (explorer.Explorer, error) {
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
-	if err != nil {
-		return nil, err
-	}
-
-	inter, err := net.InterfaceByName(cfg.MulticastInterfaceName)
-	if err != nil {
-		if inters, err := net.Interfaces(); len(inters) > 0 {
-			for _, i := range inters {
-				if i.Name == "lo" {
-					continue
-				} else {
-					inter = &i
-				}
-			}
-		} else {
-			return nil, err
-		}
-	}
-
-	listener, err := net.ListenMulticastUDP("udp", inter, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	sender, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	e := &UDPExplorer{
 		logger:      log.With("module", "UDPExplorer"),
 		ctx:         ctx,
 		ctxCancel:   cancel,
-		listener:    listener,
-		sender:      sender,
 		peerInfo:    pb.DomainToPbPeer(&peerInfo),
 		peerStorage: peerStorage,
 	}
 
-	e.logger.Info("UDP Explorer started")
+	var err error
+
+	switch cfg.ExloringMethod {
+	case "multicast":
+		err = e.setMulticast(cfg)
+	case "broadcast":
+		err = e.setBroadcast(cfg)
+	default:
+		return e, errors.New("unknown type of exploring")
+	}
+
+	if err != nil {
+		return e, err
+	}
+
+	e.logger.Info("starting UDP Explorer...")
 
 	e.wg.Go(e.startReceive)
 	e.wg.Go(e.checkPeersAvailable)
@@ -142,6 +125,68 @@ func (e *UDPExplorer) startReceive() {
 			}
 		}
 	}
+}
+
+func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
+	inter, err := net.InterfaceByName(cfg.MulticastInterfaceName)
+	if err != nil {
+		e.logger.Warn(err.Error())
+		e.logger.Info("try to find another interface")
+		if inters, err := net.Interfaces(); len(inters) > 0 {
+			if err != nil {
+				return err
+			}
+			for _, i := range inters {
+				if i.Name == "lo" {
+					continue
+				} else {
+					inter = &i
+					e.logger.Info("found interface", slog.Any("intr", i))
+				}
+			}
+		} else {
+			e.logger.Error("cannot find another interface")
+			return err
+		}
+	}
+
+	e.logger.Info("try to use Multicast UDP to explorer other peers")
+
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
+	if err != nil {
+		return err
+	}
+
+	e.listener, err = net.ListenMulticastUDP("udp", inter, addr)
+	if err != nil {
+		return err
+	}
+
+	e.sender, err = net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *UDPExplorer) setBroadcast(cfg *config.Config) error {
+	e.logger.Info("try to use Braodcast UDP to explorer other peers")
+
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.BroadcastAddress, cfg.BroadcastPort))
+	if err != nil {
+		return err
+	}
+	e.listener, err = net.ListenUDP("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	e.sender, err = net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *UDPExplorer) checkPeersAvailable() {
