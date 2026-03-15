@@ -46,12 +46,12 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 		peerStorage: peerStorage,
 	}
 
-	var err error
+	e.logger.Info("starting UDP Explorer...")
 
+	var err error
 	if cfg.Explorer.Multicast != nil {
 		err = e.setMulticast(cfg)
 	}
-
 	if cfg.Explorer.Broadcast != nil {
 		if cfg.Explorer.Multicast != nil {
 			e.logger.Warn("cannot use 2 exploring method. Now using Multicast UDP")
@@ -59,12 +59,9 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 			err = e.setBroadcast(cfg)
 		}
 	}
-
 	if err != nil {
 		return e, err
 	}
-
-	e.logger.Info("starting UDP Explorer...")
 
 	e.wg.Go(e.startReceive)
 	e.wg.Go(e.checkPeersAvailable)
