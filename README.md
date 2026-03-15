@@ -12,12 +12,35 @@ There will be more in the future:
 
 ### Exploring
 
-UDP Multicast is used to explore other peers in local network.
+#### UDP Multicasting
+
+To use multicast UDP set at least `multicast` filed in the config.
+
+All available params:
+``` yaml
+explorer:
+  multicast:
+    address: 235.5.5.11
+    port: 8001
+    interface-name: wlan0 # system name of interface (`ip a` on Unix or `ipconfig` on Windows)
+```
 
 > [!IMPORTANT]
 > Peers must use the same multicast UDP addresses and ports to detect each other.
 
 Read more [there](https://en.wikipedia.org/wiki/Multicast).
+
+#### UDP Broadcasting
+
+To use broadcast UDP set at least `broadcast` filed in the config.
+
+All available params:
+``` yaml
+explorer:
+  broadcast:
+    address: 255.255.255.255
+    port: 8001
+```
 
 ### Communication
 
