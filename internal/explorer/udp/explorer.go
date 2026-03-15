@@ -131,27 +131,12 @@ func (e *UDPExplorer) startReceive() {
 }
 
 func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
-	inter, err := net.InterfaceByName(cfg.Explorer.Multicast.InterfaceName)
+	inter, err := getMainInterface()
 	if err != nil {
-		e.logger.Warn(err.Error())
-		e.logger.Info("try to find another interface")
-		if inters, err := net.Interfaces(); len(inters) > 0 {
-			if err != nil {
-				return err
-			}
-			for _, i := range inters {
-				if i.Name == "lo" {
-					continue
-				} else {
-					inter = &i
-					e.logger.Info("found interface", slog.Any("intr", i))
-				}
-			}
-		} else {
-			e.logger.Error("cannot find another interface")
-			return err
-		}
+		e.logger.Error("cannot found main interface, please set manualy `interface-name`")
+		return err
 	}
+	e.logger.Info("found interface", "interface-name", inter.Name)
 
 	e.logger.Info("try to use Multicast UDP to explorer other peers")
 
@@ -169,6 +154,7 @@ func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -212,4 +198,35 @@ func (e *UDPExplorer) checkPeersAvailable() {
 			}
 		}
 	}
+}
+
+func getMainInterface() (*net.Interface, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return nil, err
+	}
+	addr := conn.LocalAddr().(*net.UDPAddr)
+	fmt.Println(addr)
+
+	if inters, err := net.Interfaces(); len(inters) > 0 {
+		if err != nil {
+			return nil, err
+		}
+		for _, i := range inters {
+			if i.Name == "lo" {
+				continue
+			}
+			addrs, err := i.Addrs()
+			if err != nil {
+				continue
+			}
+			fmt.Println(addrs)
+			for _, a := range addrs {
+				if ipNet, ok := a.(*net.IPNet); ok && ipNet.IP.Equal(addr.IP) {
+					return &i, nil
+				}
+			}
+		}
+	}
+	return nil, errors.New("cannot found interface")
 }

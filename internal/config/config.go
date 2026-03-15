@@ -70,8 +70,8 @@ func parseConfigFile(ConfigFile string, config *Config) error {
 		config.WebSocket = webSocket{Port: 8001}
 		config.Explorer = explorer{
 			Period: 20 * time.Second,
-			Broadcast: &broadcast{
-				Address: "255.255.255.255",
+			Multicast: &multicast{
+				Address: "235.5.5.11",
 				Port:    8001,
 			},
 		}
