@@ -48,13 +48,16 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 
 	var err error
 
-	switch cfg.ExloringMethod {
-	case "multicast":
+	if cfg.Explorer.Multicast != nil {
 		err = e.setMulticast(cfg)
-	case "broadcast":
-		err = e.setBroadcast(cfg)
-	default:
-		return e, errors.New("unknown type of exploring")
+	}
+
+	if cfg.Explorer.Broadcast != nil {
+		if cfg.Explorer.Multicast != nil {
+			e.logger.Warn("cannot use 2 exploring method. Now using Multicast UDP")
+		} else {
+			err = e.setBroadcast(cfg)
+		}
 	}
 
 	if err != nil {
@@ -128,7 +131,7 @@ func (e *UDPExplorer) startReceive() {
 }
 
 func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
-	inter, err := net.InterfaceByName(cfg.MulticastInterfaceName)
+	inter, err := net.InterfaceByName(cfg.Explorer.Multicast.InterfaceName)
 	if err != nil {
 		e.logger.Warn(err.Error())
 		e.logger.Info("try to find another interface")
@@ -152,7 +155,7 @@ func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 
 	e.logger.Info("try to use Multicast UDP to explorer other peers")
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.Explorer.Multicast.Address, cfg.Explorer.Multicast.Port))
 	if err != nil {
 		return err
 	}
@@ -172,7 +175,7 @@ func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 func (e *UDPExplorer) setBroadcast(cfg *config.Config) error {
 	e.logger.Info("try to use Braodcast UDP to explorer other peers")
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.BroadcastAddress, cfg.BroadcastPort))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.Explorer.Broadcast.Address, cfg.Explorer.Broadcast.Port))
 	if err != nil {
 		return err
 	}

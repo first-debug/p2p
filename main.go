@@ -24,9 +24,9 @@ var selfInfo domain.Peer
 func main() {
 	cfg := config.MustLoad()
 
-	fmt.Printf("Using cache directory: %v\n", cfg.CachePath)
+	fmt.Printf("Using config directory: %v\n", cfg.ConfigDir)
 
-	logFile, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+	logFile, err := os.OpenFile(cfg.ConfigDir+"log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 	if err != nil {
 		panic(err)
 	}
@@ -37,16 +37,17 @@ func main() {
 	}))
 
 	selfInfo = domain.Peer{
-		Port: cfg.WebSocketPort,
+		Port: cfg.WebSocket.Port,
 	}
 
-	if _, err := os.Stat(cfg.IDFile); os.IsNotExist(err) {
+	idFile := cfg.ConfigDir + "id"
+	if _, err := os.Stat(idFile); os.IsNotExist(err) {
 		selfInfo.ID = uuid.New()
-		if err := os.WriteFile(cfg.IDFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
+		if err := os.WriteFile(idFile, []byte(selfInfo.ID.String()), 0o600); err != nil {
 			panic(err)
 		}
 	} else {
-		idFile, err := os.OpenFile(cfg.IDFile, os.O_RDONLY, 0o600)
+		idFile, err := os.OpenFile(idFile, os.O_RDONLY, 0o600)
 		if err != nil {
 			panic(err)
 		}
@@ -75,7 +76,7 @@ func main() {
 	pStorage := peerstorage.NewMemoryPeerStorage(logger)
 	sStorage := sessionstorage.NewMemorySessionStorage(logger)
 
-	s := websocket.NewWebSocketServer(logger, cfg.WebSocketPort, sStorage, pStorage)
+	s := websocket.NewWebSocketServer(logger, cfg.WebSocket.Port, sStorage, pStorage)
 
 	serverErr := make(chan error, 1)
 	go func() {
@@ -93,7 +94,7 @@ func main() {
 	}
 
 	go func() {
-		ticker := time.NewTicker(time.Second)
+		ticker := time.NewTicker(cfg.Explorer.Period)
 		defer ticker.Stop()
 
 		for {

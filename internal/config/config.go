@@ -3,78 +3,94 @@
 package config
 
 import (
-	"errors"
 	"flag"
-	"io/fs"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
-	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	// PeerName               string `env:"PEER_NAME"`
 	// PeerPort               int    `env:"PEER_PORT" env-default:"8001"`
-	LogLevel               slog.Level `env:"LOG_LEVEL" env-default:"INFO"`
-	WebSocketPort          int        `env:"WEBSOCKET_PORT" env-default:"8001"`
-	ExloringMethod         string     `env:"EXPLORING_METHOD" env-default:"multicast"`
-	MulticastAddress       string     `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
-	MulticastPort          int        `env:"MULTICAST_PORT" env-default:"8001"`
-	MulticastInterfaceName string     `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`
-	BroadcastAddress       string     `env:"BROADCAST_ADDRESS" env-default:"235.5.5.11"`
-	BroadcastPort          int        `env:"BROADCAST_PORT" env-default:"8001"`
-	CachePath              string     `env:"CACHE_PATH"`
-	LogFile                string
-	IDFile                 string
+	LogLevel  slog.Level `yaml:"log-level"`
+	WebSocket webSocket  `yaml:"websocket"`
+	Explorer  explorer   `yaml:"explorer"`
+	ConfigDir string     `yaml:"-"`
 }
 
 func MustLoad() *Config {
 	cfg := &Config{}
 
-	var envPath string
-	flag.StringVar(&envPath, "env-file", "", "explicitly specifying the env file to use")
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.ConfigDir = strings.TrimRight(strings.TrimRight(configDir, "/"), "\\") + "/p2p/"
+
+	if err := makeConfigDirIfNotExists(cfg.ConfigDir, cfg); err != nil {
+		panic(err)
+	}
+
+	var ConfigFile string
+	flag.StringVar(&ConfigFile, "config", cfg.ConfigDir+"config.yaml", "explicitly specifying the env file to use")
 	flag.Parse()
 
-	var err error
-	if envPath == "" {
-		err = godotenv.Load()
-		if err != nil && errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
-	} else {
-		err = godotenv.Load(envPath)
+	if err := parseConfigFile(ConfigFile, cfg); err != nil {
+		panic(err)
 	}
-	if err != nil {
-		panic(err.Error())
-	}
-
-	err = cleanenv.ReadEnv(cfg)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	if cfg.CachePath == "" {
-		cfg.CachePath, err = os.UserCacheDir()
-		if err != nil {
-			panic(err)
-		}
-		cfg.CachePath += "/p2p/"
-	} else {
-		if cfg.CachePath[len(cfg.CachePath)-1] != '/' {
-			cfg.CachePath += "/"
-		}
-	}
-
-	_, stat := os.Stat(cfg.CachePath)
-	if os.IsNotExist(stat) {
-		if err := os.MkdirAll(cfg.CachePath, 0o755); err != nil {
-			panic(err)
-		}
-	}
-
-	cfg.LogFile = cfg.CachePath + "log.log"
-	cfg.IDFile = cfg.CachePath + "id"
 
 	return cfg
+}
+
+func makeConfigDirIfNotExists(configDir string, config *Config) (err error) {
+	_, err = os.Stat(configDir)
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(configDir, 0o755); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func parseConfigFile(ConfigFile string, config *Config) error {
+	var file *os.File
+	file, err := os.Open(ConfigFile)
+	if err == nil {
+		defer file.Close()
+
+		return yaml.NewDecoder(file).Decode(config)
+	}
+
+	if os.IsNotExist(err) {
+		config.WebSocket = webSocket{Port: 8001}
+		config.Explorer = explorer{
+			Period: 20 * time.Second,
+			Broadcast: &broadcast{
+				Address: "255.255.255.255",
+				Port:    8001,
+			},
+		}
+		if file, err = createConfigFile(ConfigFile, config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createConfigFile(ConfigFile string, config *Config) (*os.File, error) {
+	file, err := os.Create(ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = yaml.NewEncoder(file).Encode(config); err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }

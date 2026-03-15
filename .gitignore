@@ -5,3 +5,6 @@ __pycache__
 !.env.tamplate
 build/
 test/data/
+*config.yaml
+*config.yml
+!template-config.yaml
