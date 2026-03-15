@@ -8,9 +8,11 @@ import (
 	"os/signal"
 	"time"
 
+	ws "github.com/first-debug/p2p/internal/client/websocket"
 	"github.com/first-debug/p2p/internal/config"
 	"github.com/first-debug/p2p/internal/domain"
 	udpexplorer "github.com/first-debug/p2p/internal/explorer/udp"
+	"github.com/first-debug/p2p/internal/manager/cli"
 	"github.com/first-debug/p2p/internal/server/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer/memory"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session/memory"
@@ -104,11 +106,22 @@ func main() {
 		}
 	}()
 
+	client := ws.NewWebSocketClient(logger, selfInfo, sStorage)
+
+	mgr := cli.NewCliManager(ctx, logger, selfInfo, pStorage, sStorage, client)
+
+	mgrErr := make(chan error)
+	go func() {
+		mgrErr <- mgr.Run()
+	}()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 	select {
 	case err := <-serverErr:
 		logger.Error("failed to serve", slog.String("error", err.Error()))
+	case err := <-mgrErr:
+		logger.Error("manager exit ", slog.String("status", err.Error()))
 	case sig := <-sigs:
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
