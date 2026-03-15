@@ -31,6 +31,7 @@ func main() {
 		panic(err)
 	}
 	defer logFile.Close()
+	defer fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 
 	logger := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{
 		Level: cfg.LogLevel,
@@ -116,7 +117,6 @@ func main() {
 		mgrErr <- mgr.Run()
 	}()
 
-	defer fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 	select {
