@@ -116,6 +116,7 @@ func main() {
 		mgrErr <- mgr.Run()
 	}()
 
+	defer fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 	select {
@@ -132,6 +133,5 @@ func main() {
 		defer cancel()
 		s.Stop(ctx)
 		logger.Info("terminating", slog.Any("signal", sig))
-		fmt.Fprint(logFile, "--- ", time.Now(), " ---\n")
 	}
 }
