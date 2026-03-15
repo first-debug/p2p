@@ -18,6 +18,7 @@ type Config struct {
 	// PeerPort               int    `env:"PEER_PORT" env-default:"8001"`
 	LogLevel               slog.Level `env:"LOG_LEVEL" env-default:"INFO"`
 	WebSocketPort          int        `env:"WEBSOCKET_PORT" env-default:"8001"`
+	ExloringMethod         string     `env:"EXPLORING_METHOD" env-default:"multicast"`
 	MulticastAddress       string     `env:"MULTICAST_ADDRESS" env-default:"235.5.5.11"`
 	MulticastPort          int        `env:"MULTICAST_PORT" env-default:"8001"`
 	MulticastInterfaceName string     `env:"MULTICAST_INTERFACE_NAME" env-default:"wlan0"`

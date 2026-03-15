@@ -46,13 +46,22 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 		peerStorage: peerStorage,
 	}
 
-	e.selectAvailableExploringMethod(cfg)
+	var err error
 
-	if e.listener == nil || e.sender == nil {
-		return e, errors.New("cannot create UDP Explorer")
+	switch cfg.ExloringMethod {
+	case "multicast":
+		err = e.setMulticast(cfg)
+	case "broadcast":
+		err = e.setBroadcast(cfg)
+	default:
+		return e, errors.New("unknown type of exploring")
 	}
 
-	e.logger.Info("UDP Explorer started")
+	if err != nil {
+		return e, err
+	}
+
+	e.logger.Info("starting UDP Explorer...")
 
 	e.wg.Go(e.startReceive)
 	e.wg.Go(e.checkPeersAvailable)
@@ -119,17 +128,14 @@ func (e *UDPExplorer) startReceive() {
 	}
 }
 
-// selectAvailableExploringMethod the method checks the availability of methods for distributing information about peers.
-// If none of the methods can be found, then `e.listener` and `e.sender` will be set to nil
-func (e *UDPExplorer) selectAvailableExploringMethod(cfg *config.Config) {
+func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 	inter, err := net.InterfaceByName(cfg.MulticastInterfaceName)
 	if err != nil {
 		e.logger.Warn(err.Error())
 		e.logger.Info("try to find another interface")
 		if inters, err := net.Interfaces(); len(inters) > 0 {
 			if err != nil {
-				e.logger.Warn(err.Error())
-				return
+				return err
 			}
 			for _, i := range inters {
 				if i.Name == "lo" {
@@ -141,7 +147,7 @@ func (e *UDPExplorer) selectAvailableExploringMethod(cfg *config.Config) {
 			}
 		} else {
 			e.logger.Error("cannot find another interface")
-			return
+			return err
 		}
 	}
 
@@ -149,99 +155,38 @@ func (e *UDPExplorer) selectAvailableExploringMethod(cfg *config.Config) {
 
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", cfg.MulticastAddress, cfg.MulticastPort))
 	if err != nil {
-		e.logger.Warn(err.Error())
-		return
+		return err
 	}
 
 	e.listener, err = net.ListenMulticastUDP("udp", inter, addr)
 	if err != nil {
-		e.logger.Warn("cannot listen Multicast UDP", "error", err.Error())
-		return
+		return err
 	}
 
 	e.sender, err = net.DialUDP("udp", nil, addr)
 	if err != nil {
-		e.listener = nil
-		e.logger.Warn("cannot connect to Multicast UDP", "error", err.Error())
-		return
+		return err
 	}
+	return nil
+}
 
-	err = e.testExploringMethod()
-
-	if err != nil {
-		e.listener.Close()
-		e.sender.Close()
-		e.listener = nil
-		e.sender = nil
-		e.logger.Error("cannot use Multicast UDP", "error", err.Error())
-	} else {
-		e.logger.Info("use Multicast UDP")
-		return
-	}
-
+func (e *UDPExplorer) setBroadcast(cfg *config.Config) error {
 	e.logger.Info("try to use Braodcast UDP to explorer other peers")
 
-	addr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.BroadcastAddress, cfg.BroadcastPort))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.BroadcastAddress, cfg.BroadcastPort))
 	if err != nil {
-		e.logger.Error("cannot use Braodcast UDP", "error", err.Error())
-		return
+		return err
 	}
 	e.listener, err = net.ListenUDP("udp", addr)
 	if err != nil {
-		e.logger.Error("cannot listen Braodcast UDP", "error", err.Error())
-		return
+		return err
 	}
 
 	e.sender, err = net.DialUDP("udp", nil, addr)
 	if err != nil {
-		e.listener = nil
-		e.logger.Error("cannot dial Braodcast UDP", "error", err.Error())
-		return
+		return err
 	}
 
-	err = e.testExploringMethod()
-
-	if err != nil {
-		e.listener.Close()
-		e.sender.Close()
-		e.listener = nil
-		e.sender = nil
-		e.logger.Error("cannot use Braodcast UDP", "error", err.Error())
-	} else {
-		e.logger.Info("use Braodcast UDP")
-		return
-	}
-}
-
-func (e *UDPExplorer) testExploringMethod() error {
-	test := make(chan error)
-	defer close(test)
-
-	go func() {
-		data := make([]byte, 1024)
-		_, addr, err := e.listener.ReadFromUDP(data)
-		ipParts := strings.Split(e.sender.LocalAddr().String(), ":")
-		if len(ipParts) != 2 {
-			e.logger.Error("cannot parse local IPv4", slog.String("address", e.sender.LocalAddr().String()))
-		}
-		e.logger.Info("parse ip", "int-ip", addr.IP, "ext-ip", ipParts[0])
-		test <- err
-	}()
-
-	for range 5 {
-		e.Emit()
-	}
-
-	select {
-	case <-time.Tick(time.Second):
-		e.listener.Close()
-		e.listener = nil
-		return errors.New("listen timeout")
-	case err := <-test:
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
