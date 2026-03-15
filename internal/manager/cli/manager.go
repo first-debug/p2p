@@ -35,7 +35,7 @@ const (
 
 var (
 	menuPromt              string = colorizeText(">> ", colorGreen)
-	messagingTemplatePromt string = colorizeText("(%s)>> ", colorGreen)
+	messagingTemplatePromt string = colorizeText("(%s)>> ", colorRed)
 )
 
 type CliManager struct {
@@ -145,10 +145,12 @@ func (m *CliManager) handelMessage(msg string) {
 	}
 
 	sendTime := timestamppb.Now()
-
-	fmt.Fprintf(
-		m.writer, "\033[F\r%s\n%s\n",
-		colorizeText(sendTime.AsTime().String(), colorBlue), msg,
+	fmt.Fprintf(m.writer, "\033[F\r\033[K")
+	fmt.Fprintf(m.writer,
+		"%s>> %s\n>> %s%s\n",
+		colorGreen, sendTime.AsTime(),
+		colorNone,
+		msg,
 	)
 
 	m.currentWriteCh <- &pb.Message{

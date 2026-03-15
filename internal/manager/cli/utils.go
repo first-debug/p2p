@@ -26,13 +26,12 @@ func (m *CliManager) readSessionMessages() {
 				return
 			}
 
-			termWidth := m.getOutputWidth(os.Stdout)
+			// termWidth := m.getOutputWidth(os.Stdout)
 			fmt.Fprintf(
-				m.writer, "%s%*s%s\n%*s\n",
+				m.writer, "%s<< %s\n<< %s%s\n",
 				colorBlue,
-				termWidth, msg.SendTime.AsTime(),
-				colorNone,
-				termWidth, msg.Message,
+				msg.SendTime.AsTime(),
+				colorNone, msg.Message,
 			)
 		}
 	}
