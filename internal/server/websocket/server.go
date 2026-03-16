@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/first-debug/p2p/internal/server"
+	session "github.com/first-debug/p2p/internal/session/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 	"github.com/google/uuid"
@@ -126,7 +127,7 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error("cannot connect to peer", slog.String("error", err.Error()), slog.String("PeerID", peer.ID.String()))
 		return
 	}
-	newS := NewWebSocketSession(s.logger, c, &peer, true, time.Now())
+	newS := session.NewWebSocketSession(s.logger, c, &peer, true, time.Now())
 	if err = s.sessionsStorage.Add(newS); err != nil {
 		s.logger.Error("cannot save new Session", slog.String("error", err.Error()))
 	}
