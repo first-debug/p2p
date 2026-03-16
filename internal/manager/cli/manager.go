@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,12 +14,18 @@ import (
 	pb "github.com/first-debug/p2p/internal/proto"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
+	"golang.org/x/term"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chzyer/readline"
 )
 
 type inputMode int
+
+const (
+	menu inputMode = iota
+	messaging
+)
 
 const (
 	colorRed    = "\033[0;31m"
@@ -29,13 +36,13 @@ const (
 )
 
 const (
-	menu inputMode = iota
-	messaging
+	altTab     = "  "
+	timeFormat = "15:04:05, 2 Jan 2006"
 )
 
 var (
-	menuPromt              string = colorizeText(">> ", colorGreen)
-	messagingTemplatePromt string = colorizeText("(%s)>> ", colorRed)
+	menuPromt              string = fmt.Sprintf("\r%s", colorizeText(">> ", colorGreen))
+	messagingTemplatePromt string = fmt.Sprintf("\r%s", colorizeText("(%s)>> ", colorRed))
 )
 
 type CliManager struct {
@@ -69,6 +76,12 @@ func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p pe
 }
 
 func (m *CliManager) Run() error {
+	oldState, err := term.MakeRaw(0)
+	if err != nil {
+		return err
+	}
+	defer term.Restore(0, oldState)
+
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          menuPromt,
 		HistoryFile:     "/tmp/readline.tmp",
@@ -92,7 +105,12 @@ func (m *CliManager) Run() error {
 			input, err := m.rl.Readline()
 			if err != nil {
 				if err == readline.ErrInterrupt {
-					fmt.Fprintln(m.writer, colorizeText("\nUse '/quit' in session or 'exit' to close CLI", colorYellow))
+					switch m.currentMode {
+					case menu:
+						writeWarn(m.writer, "Use 'exit' to close CLI.")
+					case messaging:
+						writeWarn(m.writer, "Use '/quit' to detach feom session.")
+					}
 					continue
 				}
 				return err
@@ -122,10 +140,10 @@ func (m *CliManager) handelMenu(input string) (err error) {
 	} else if strings.HasPrefix(input, "attach ") {
 		m.catchAttachCommand(input)
 	} else if input == "exit" {
-		fmt.Fprintln(m.writer, colorizeText("exit", colorGreen))
+		fmt.Fprintf(m.writer, "\r%s\n", colorizeText("exit", colorGreen))
 		return &readline.InterruptError{}
 	} else {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), "not supported command")
+		writeError(m.writer, errors.New("not supported command"))
 	}
 	return
 }
@@ -138,7 +156,7 @@ func (m *CliManager) handelMessage(msg string) {
 
 	if msg == "/quit" {
 		m.logger.Debug("пользователь ввёл /quit => выход из сессии")
-		fmt.Fprintln(m.writer, colorizeText("detached from the session", colorYellow))
+		writeWarn(m.writer, "detached from the session.")
 		m.setMenuMode()
 		m.sessionCtxCancel()
 		return
@@ -147,7 +165,7 @@ func (m *CliManager) handelMessage(msg string) {
 	sendTime := timestamppb.Now()
 	fmt.Fprintf(m.writer, "\033[F\r\033[K")
 	fmt.Fprintf(m.writer,
-		"%s>> %s\n>> %s%s\n",
+		"%s>> %s\n\r>> %s%s\n",
 		colorGreen, sendTime.AsTime(),
 		colorNone,
 		msg,

@@ -11,60 +11,74 @@ import (
 func (m *CliManager) catchListPeers() {
 	peers, err := m.pStorage.GetAll()
 	if err != nil {
-		fmt.Fprintln(m.writer, err.Error())
+		writeError(m.writer, err)
 	} else {
-		fmt.Fprint(m.writer, "[")
-		for _, v := range peers {
-			fmt.Fprintln(m.writer)
-			fmt.Fprintln(m.writer, "\t", v.ID)
+		peersLen := len(peers)
+		if peersLen == 0 {
+			writeWarn(m.writer, "Peers list is empty.")
+			return
 		}
-		fmt.Fprintln(m.writer, "]")
+		for i, v := range peers {
+			fmt.Fprintf(m.writer, "\r%3d) ID: %s\n", i+1, v.ID)
+			fmt.Fprintf(m.writer, "\r%4s%sIP: %s\n", altTab, altTab, v.IP)
+			fmt.Fprintf(m.writer, "\r%4s%sPort: %d\n", altTab, altTab, v.Port)
+			if i != peersLen-1 {
+				fmt.Fprintln(m.writer)
+			}
+		}
 	}
 }
 
 func (m *CliManager) catchListSessions() {
 	sess, err := m.sStorage.GetAll()
 	if err != nil {
-		fmt.Fprintln(m.writer, err.Error())
+		writeError(m.writer, err)
 	} else {
-		fmt.Fprint(m.writer, "[")
-		for _, v := range sess {
-			fmt.Fprintln(m.writer)
-			fmt.Fprintln(m.writer, "\t", v.GetID())
+		sessLen := len(sess)
+		if sessLen == 0 {
+			writeWarn(m.writer, "Sessions list is empty.")
+			return
 		}
-		fmt.Fprintln(m.writer, "]")
+		for i, v := range sess {
+			fmt.Fprintf(m.writer, "\r%3d) ID: %s\n", i+1, v.GetID())
+			fmt.Fprintf(m.writer, "\r%4s%sPeer ID: %s\n", altTab, altTab, v.GetPeerID())
+			fmt.Fprintf(m.writer, "\r%4s%sLast dial: %v\n", altTab, altTab, v.GetLastDial().Format(timeFormat))
+			if i != sessLen-1 {
+				fmt.Fprintln(m.writer)
+			}
+		}
 	}
 }
 
 func (m *CliManager) catchConnectCommand(input string) {
 	strs := strings.Split(input, " ")
 	if len(strs) != 2 {
-		fmt.Fprintln(m.writer, "too many arguments for `connect` command")
+		writeWarn(m.writer, "too many arguments for `connect` command.")
 		return
 	}
 	id, err := uuid.Parse(strs[1])
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	peer, err := m.pStorage.GetByID(id)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	sess, err := m.client.Connect(context.Background(), &peer)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	wCh, err := sess.GetWriteChannel(m.ctx)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	rCh, err := sess.GetReadChannel(m.ctx)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 
@@ -74,27 +88,27 @@ func (m *CliManager) catchConnectCommand(input string) {
 func (m *CliManager) catchAttachCommand(input string) {
 	strs := strings.Split(input, " ")
 	if len(strs) != 2 {
-		fmt.Fprintln(m.writer, "too many arguments for `attach` command")
+		writeWarn(m.writer, "too many arguments for `attach` command.")
 		return
 	}
 	id, err := uuid.Parse(strs[1])
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	sess, err := m.sStorage.GetByID(id)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	wCh, err := sess.GetWriteChannel(m.ctx)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 	rCh, err := sess.GetReadChannel(m.ctx)
 	if err != nil {
-		fmt.Fprintln(m.writer, colorizeText("Error:", colorRed), err.Error())
+		writeError(m.writer, err)
 		return
 	}
 

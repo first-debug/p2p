@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -20,7 +21,7 @@ func (m *CliManager) readSessionMessages() {
 		case msg, ok := <-m.currentReadCh:
 			if !ok {
 				m.logger.Debug("канал сообщений закрыт")
-				fmt.Fprintln(m.writer, colorizeText("peer disconnected", colorYellow))
+				fmt.Fprintf(m.writer, "\r%s\n", colorizeText("peer disconnected", colorYellow))
 				m.sessionCtxCancel()
 				m.setMenuMode()
 				return
@@ -28,7 +29,7 @@ func (m *CliManager) readSessionMessages() {
 
 			// termWidth := m.getOutputWidth(os.Stdout)
 			fmt.Fprintf(
-				m.writer, "%s<< %s\n<< %s%s\n",
+				m.writer, "\r%s<< %s\n\r<< %s%s\n",
 				colorBlue,
 				msg.SendTime.AsTime(),
 				colorNone, msg.Message,
@@ -70,4 +71,16 @@ func (m *CliManager) getOutputWidth(target *os.File) int {
 
 func colorizeText(text, color string) string {
 	return fmt.Sprintf("%s%s%s", color, text, colorNone)
+}
+
+func colorizeError(err error) string {
+	return fmt.Sprintf("%sError: %s%s", colorRed, colorNone, err.Error())
+}
+
+func writeError(writer io.Writer, err error) {
+	fmt.Fprintf(writer, "\r%s\n", colorizeError(err))
+}
+
+func writeWarn(writer io.Writer, warn string) {
+	fmt.Fprintf(writer, "\r%s\n", colorizeText(warn, colorYellow))
 }
