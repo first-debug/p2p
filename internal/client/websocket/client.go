@@ -11,6 +11,7 @@ import (
 	"github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
 	"github.com/first-debug/p2p/internal/session"
+	wssession "github.com/first-debug/p2p/internal/session/websocket"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 )
 
@@ -42,7 +43,7 @@ func (c *WebSocketClient) Connect(ctx context.Context, peer *domain.Peer) (sessi
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
-	newSession := NewWebSocketSession(c.logger, conn, peer, false, time.Now())
+	newSession := wssession.NewWebSocketSession(c.logger, conn, peer, false, time.Now())
 	if c.sStorage != nil {
 		if err := c.sStorage.Add(newSession); err != nil {
 			conn.Close(websocket.StatusInternalError, "failed to add session")
