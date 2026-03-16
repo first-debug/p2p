@@ -110,7 +110,7 @@ func main() {
 
 	client := ws.NewWebSocketClient(logger, selfInfo, sStorage)
 
-	mgr := cli.NewCliManager(ctx, logger, selfInfo, pStorage, sStorage, client)
+	mgr := cli.NewCliManager(ctx, logger, selfInfo, pStorage, sStorage, client, cfg.HistoryDir)
 
 	mgrErr := make(chan error)
 	go func() {

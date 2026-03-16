@@ -15,10 +15,11 @@ import (
 type Config struct {
 	// PeerName               string `env:"PEER_NAME"`
 	// PeerPort               int    `env:"PEER_PORT" env-default:"8001"`
-	LogLevel  slog.Level `yaml:"log-level"`
-	WebSocket webSocket  `yaml:"websocket"`
-	Explorer  explorer   `yaml:"explorer"`
-	ConfigDir string     `yaml:"-"`
+	LogLevel   slog.Level `yaml:"log-level"`
+	WebSocket  webSocket  `yaml:"websocket"`
+	Explorer   explorer   `yaml:"explorer"`
+	ConfigDir  string     `yaml:"-"`
+	HistoryDir string     `yaml:"-"`
 }
 
 func MustLoad() *Config {
@@ -30,8 +31,10 @@ func MustLoad() *Config {
 	}
 
 	cfg.ConfigDir = strings.TrimRight(strings.TrimRight(configDir, "/"), "\\") + "/p2p/"
+	cfg.HistoryDir = cfg.ConfigDir + "history/"
 
-	if err := makeConfigDirIfNotExists(cfg.ConfigDir); err != nil {
+	// make a config and a history directories
+	if err := makeDirIfNotExists(cfg.HistoryDir); err != nil {
 		panic(err)
 	}
 
@@ -46,7 +49,7 @@ func MustLoad() *Config {
 	return cfg
 }
 
-func makeConfigDirIfNotExists(configDir string) (err error) {
+func makeDirIfNotExists(configDir string) (err error) {
 	_, err = os.Stat(configDir)
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(configDir, 0o755); err != nil {

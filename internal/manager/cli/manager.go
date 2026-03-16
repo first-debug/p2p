@@ -43,6 +43,7 @@ const (
 var (
 	menuPromt              string = fmt.Sprintf("\r%s", colorizeText(">> ", colorGreen))
 	messagingTemplatePromt string = fmt.Sprintf("\r%s", colorizeText("(%s)>> ", colorRed))
+	historyFileName        string = "history.tmp"
 )
 
 type CliManager struct {
@@ -60,9 +61,10 @@ type CliManager struct {
 	currentReadCh    <-chan *pb.Message
 	sessionCtx       context.Context
 	sessionCtxCancel context.CancelFunc
+	historyDir       string
 }
 
-func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, c client.Client) manager.Manager {
+func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, c client.Client, historyDir string) manager.Manager {
 	return &CliManager{
 		ctx:      ctx,
 		logger:   log,
@@ -72,6 +74,7 @@ func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p pe
 		client:   c,
 
 		currentMode: menu,
+		historyDir:  historyDir,
 	}
 }
 
@@ -84,7 +87,7 @@ func (m *CliManager) Run() error {
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          menuPromt,
-		HistoryFile:     "/tmp/readline.tmp",
+		HistoryFile:     fmt.Sprintf("%s/%s", m.historyDir, historyFileName),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 
