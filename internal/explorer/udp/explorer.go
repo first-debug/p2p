@@ -203,7 +203,6 @@ func getMainInterface() (*net.Interface, error) {
 		return nil, err
 	}
 	addr := conn.LocalAddr().(*net.UDPAddr)
-	fmt.Println(addr)
 
 	if inters, err := net.Interfaces(); len(inters) > 0 {
 		if err != nil {
@@ -217,7 +216,6 @@ func getMainInterface() (*net.Interface, error) {
 			if err != nil {
 				continue
 			}
-			fmt.Println(addrs)
 			for _, a := range addrs {
 				if ipNet, ok := a.(*net.IPNet); ok && ipNet.IP.Equal(addr.IP) {
 					return &i, nil
