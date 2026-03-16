@@ -14,10 +14,11 @@ import (
 	pb "github.com/first-debug/p2p/internal/proto"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
-	"golang.org/x/term"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chzyer/readline"
+	"github.com/mattn/go-colorable"
+	"golang.org/x/term"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type inputMode int
@@ -90,6 +91,7 @@ func (m *CliManager) Run() error {
 		HistoryFile:     fmt.Sprintf("%s/%s", m.historyDir, historyFileName),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
+		Stdout:          colorable.NewColorableStdout(),
 
 		HistorySearchFold: true,
 	})
