@@ -148,6 +148,18 @@ func (e *UDPExplorer) startReceive() {
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 				e.logger.Error("cannot add new peer", slog.String("error", err.Error()))
+				return
+			}
+
+			data, err = proto.Marshal(e.peerInfo)
+			if err != nil {
+				e.logger.Error("cannot marshal self info", slog.String("error", err.Error()))
+				return
+			}
+			if n, err := e.listener.WriteTo(data, addr); err != nil {
+				e.logger.Error("cannot answer to peer", slog.String("error", err.Error()))
+			} else {
+				e.logger.Error("answer to peer", slog.Int("bytes", n))
 			}
 		}
 	}
