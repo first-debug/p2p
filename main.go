@@ -102,6 +102,7 @@ func main() {
 		ticker := time.NewTicker(cfg.Explorer.Period)
 		defer ticker.Stop()
 
+		explorer.Emit()
 		for {
 			select {
 			case <-ticker.C:
