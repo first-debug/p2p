@@ -45,6 +45,7 @@ func (m *CliManager) setMessagingMode(peerID uuid.UUID, rCh <-chan *pb.Message, 
 	m.currentWriteCh = wCh
 	m.sessionCtx, m.sessionCtxCancel = context.WithCancel(m.ctx)
 
+	m.rl.Config.AutoComplete = messagingCompleter
 	m.rl.SetPrompt(fmt.Sprintf(messagingTemplatePromt, strings.Split(peerID.String(), "-")[0]))
 	m.rl.Refresh()
 
@@ -53,6 +54,7 @@ func (m *CliManager) setMessagingMode(peerID uuid.UUID, rCh <-chan *pb.Message, 
 
 func (m *CliManager) setMenuMode() {
 	m.currentMode = menu
+	m.rl.Config.AutoComplete = menuCompleter
 	m.rl.SetPrompt(menuPromt)
 	m.rl.Refresh()
 }

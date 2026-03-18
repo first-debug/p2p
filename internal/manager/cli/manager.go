@@ -48,6 +48,23 @@ var (
 	historyFileName        string = "history.tmp"
 )
 
+var (
+	menuCompleter = readline.NewPrefixCompleter(
+		readline.PcItem("list",
+			readline.PcItem("peers"),
+			readline.PcItem("sessions"),
+		),
+		readline.PcItem("connect"),
+		readline.PcItem("attach"),
+		readline.PcItem("load-peers"),
+		readline.PcItem("emit"),
+		readline.PcItem("exit"),
+	)
+	messagingCompleter = readline.NewPrefixCompleter(
+		readline.PcItem("/quit"),
+	)
+)
+
 type CliManager struct {
 	ctx      context.Context
 	logger   *slog.Logger
@@ -92,6 +109,7 @@ func (m *CliManager) Run() error {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          menuPromt,
 		HistoryFile:     fmt.Sprintf("%s/%s", m.historyDir, historyFileName),
+		AutoComplete:    menuCompleter,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 		Stdout:          colorable.NewColorableStdout(),
