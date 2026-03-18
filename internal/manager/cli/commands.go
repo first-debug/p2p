@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/first-debug/p2p/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -101,4 +104,54 @@ func (m *CliManager) catchAttachCommand(input string) {
 	}
 
 	m.setMessagingMode(sess.GetPeerID(), rCh, wCh)
+}
+
+func (m *CliManager) catchLoadPeersCommand(input string) {
+	strs := strings.Fields(input)
+	if len(strs) != 2 {
+		writeWarn(m.writer, "too many arguments for `load-peers` command.")
+		return
+	}
+	id, err := uuid.Parse(strs[1])
+	if err != nil {
+		writeError(m.writer, err)
+		return
+	}
+	peer, err := m.pStorage.GetByID(id)
+	if err != nil {
+		writeError(m.writer, err)
+		return
+	}
+	var peers []domain.Peer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg := sync.WaitGroup{}
+	end := make(chan error)
+
+	wg.Go(func() {
+		peers, err = m.client.GetKnownPeers(ctx, &peer)
+		end <- err
+	})
+
+	select {
+	case err, ok := <-end:
+		cancel()
+		if !ok {
+			break
+		}
+		if err != nil {
+			writeError(m.writer, fmt.Errorf("cannot load peers: %s", err.Error()))
+			return
+		}
+	case <-time.Tick(5 * time.Second):
+		writeError(m.writer, fmt.Errorf("cannot load peers: %s", err.Error()))
+		cancel()
+		wg.Wait()
+		return
+	}
+	writePeerList(m.writer, peers)
+	for _, p := range peers {
+		m.pStorage.Add(p)
+	}
 }

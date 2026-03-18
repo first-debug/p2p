@@ -142,6 +142,8 @@ func (m *CliManager) handelMenu(input string) (err error) {
 		m.catchConnectCommand(input)
 	} else if strings.HasPrefix(input, "attach") {
 		m.catchAttachCommand(input)
+	} else if strings.HasPrefix(input, "load-peers") {
+		m.catchLoadPeersCommand(input)
 	} else if input == "exit" {
 		fmt.Fprintf(m.writer, "\r%s\n", colorizeText("exit", colorGreen))
 		return &readline.InterruptError{}
