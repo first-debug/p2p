@@ -81,6 +81,66 @@ func (e *UDPExplorer) Emit() error {
 	return nil
 }
 
+func (e *UDPExplorer) TargetEmit(target string) error {
+	data, err := proto.Marshal(e.peerInfo)
+	if err != nil {
+		return err
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", target)
+	if err != nil {
+		return err
+	}
+
+	sender, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return err
+	}
+	defer sender.Close()
+	sender.SetDeadline(time.Now().Add(300 * time.Millisecond))
+
+	n, err := sender.Write(data)
+	if err != nil {
+		return err
+	}
+	if n != len(data) {
+		e.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(data)), slog.Int("written len", n))
+	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	data = make([]byte, 1024)
+	for {
+		select {
+		case <-ticker.C:
+			return errors.New("cannot get answer from peer")
+		default:
+			n, ansAddr, err := sender.ReadFromUDP(data)
+			if err != nil {
+				return err
+			}
+			if !addr.IP.Equal(ansAddr.IP) {
+				continue
+			}
+
+			peer, err := e.parseDomainPeer(n, data)
+			if err != nil {
+				return err
+			}
+			// if `peer.IsPublicIP` set to true, `peer.IP` already contains right IP, else `peer.IP` is nil
+			if !peer.IsPublicIP {
+				peer.IP = addr.IP
+			}
+
+			err = e.peerStorage.Add(peer)
+			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
+				return err
+			}
+		}
+	}
+}
+
 func (e *UDPExplorer) Stop() {
 	e.ctxCancel()
 	e.wg.Wait()
@@ -111,18 +171,31 @@ func (e *UDPExplorer) startReceive() {
 				continue
 			}
 
-			var msg pb.Peer
-			err = proto.Unmarshal(data[:n], &msg)
+			peer, err := e.parseDomainPeer(n, data)
 			if err != nil {
-				e.logger.Error("cannot unmarshal UDP request", slog.String("error", err.Error()))
+				e.logger.Error("cannot parse Peer from UDP request", slog.String("error", err.Error()))
 				continue
 			}
-			peer := pb.PbPeerToDomain(&msg)
-			// TODO: add check to ensure IP is a valid for this Peer
-			peer.IP = addr.IP
+			// if `peer.IsPublicIP` set to true, `peer.IP` already contains right IP, else `peer.IP` is nil
+			if !peer.IsPublicIP {
+				peer.IP = addr.IP
+			}
+
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
-				e.logger.Error("Cannot add new peer", slog.String("error", err.Error()))
+				e.logger.Error("cannot add new peer", slog.String("error", err.Error()))
+				return
+			}
+
+			data, err = proto.Marshal(e.peerInfo)
+			if err != nil {
+				e.logger.Error("cannot marshal self info", slog.String("error", err.Error()))
+				return
+			}
+			if n, err := e.listener.WriteTo(data, addr); err != nil {
+				e.logger.Error("cannot answer to peer", slog.String("error", err.Error()))
+			} else {
+				e.logger.Error("answer to peer", slog.Int("bytes", n))
 			}
 		}
 	}
@@ -159,11 +232,16 @@ func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 func (e *UDPExplorer) setBroadcast(cfg *config.Config) error {
 	e.logger.Info("try to use Braodcast UDP to explorer other peers")
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.Explorer.Broadcast.Address, cfg.Explorer.Broadcast.Port))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", cfg.Explorer.Broadcast.Port))
 	if err != nil {
 		return err
 	}
 	e.listener, err = net.ListenUDP("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	addr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.Explorer.Broadcast.Address, cfg.Explorer.Broadcast.Port))
 	if err != nil {
 		return err
 	}
@@ -225,4 +303,14 @@ func getMainInterface() (*net.Interface, error) {
 		}
 	}
 	return nil, errors.New("cannot found interface")
+}
+
+func (e *UDPExplorer) parseDomainPeer(n int, data []byte) (domain.Peer, error) {
+	var msg pb.Peer
+	err := proto.Unmarshal(data[:n], &msg)
+	if err != nil {
+		return domain.Peer{}, err
+	}
+
+	return pb.PbPeerToDomain(&msg), nil
 }
