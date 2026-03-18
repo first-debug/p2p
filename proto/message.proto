@@ -18,7 +18,7 @@ message Peer {
 }
 
 message KnownPeers {
-  repeated Peer known_peers = 1;
+  repeated Peer peers = 1;
 }
 
 message UUID {
