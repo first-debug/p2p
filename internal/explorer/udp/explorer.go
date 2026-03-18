@@ -128,7 +128,10 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 			if err != nil {
 				return err
 			}
-			peer.IP = addr.IP
+			// if `peer.IsPublicIP` set to true, `peer.IP` already contains right IP, else `peer.IP` is nil
+			if !peer.IsPublicIP {
+				peer.IP = addr.IP
+			}
 
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
@@ -173,8 +176,11 @@ func (e *UDPExplorer) startReceive() {
 				e.logger.Error("cannot parse Peer from UDP request", slog.String("error", err.Error()))
 				continue
 			}
-			// TODO: add check to ensure IP is a valid for this Peer
-			peer.IP = addr.IP
+			// if `peer.IsPublicIP` set to true, `peer.IP` already contains right IP, else `peer.IP` is nil
+			if !peer.IsPublicIP {
+				peer.IP = addr.IP
+			}
+
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 				e.logger.Error("cannot add new peer", slog.String("error", err.Error()))
