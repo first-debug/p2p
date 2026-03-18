@@ -13,6 +13,8 @@ message Peer {
 	UUID ID = 1;
 	int32 port = 2;
 	map<string, string> files = 3;
+    string IP = 4;
+    bool is_public_ip = 5;
 }
 
 message KnownPeers {

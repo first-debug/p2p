@@ -79,6 +79,8 @@ type Peer struct {
 	ID            *UUID                  `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
 	Files         map[string]string      `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	IP            string                 `protobuf:"bytes,4,opt,name=IP,proto3" json:"IP,omitempty"`
+	IsPublicIp    bool                   `protobuf:"varint,5,opt,name=is_public_ip,json=isPublicIp,proto3" json:"is_public_ip,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -132,6 +134,20 @@ func (x *Peer) GetFiles() map[string]string {
 		return x.Files
 	}
 	return nil
+}
+
+func (x *Peer) GetIP() string {
+	if x != nil {
+		return x.IP
+	}
+	return ""
+}
+
+func (x *Peer) GetIsPublicIp() bool {
+	if x != nil {
+		return x.IsPublicIp
+	}
+	return false
 }
 
 type KnownPeers struct {
@@ -229,11 +245,14 @@ const file_message_proto_rawDesc = "" +
 	"\rmessage.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\\\n" +
 	"\aMessage\x127\n" +
 	"\tsend_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bsendTime\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x93\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xc5\x01\n" +
 	"\x04Peer\x12\x15\n" +
 	"\x02ID\x18\x01 \x01(\v2\x05.UUIDR\x02ID\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12&\n" +
-	"\x05files\x18\x03 \x03(\v2\x10.Peer.FilesEntryR\x05files\x1a8\n" +
+	"\x05files\x18\x03 \x03(\v2\x10.Peer.FilesEntryR\x05files\x12\x0e\n" +
+	"\x02IP\x18\x04 \x01(\tR\x02IP\x12 \n" +
+	"\fis_public_ip\x18\x05 \x01(\bR\n" +
+	"isPublicIp\x1a8\n" +
 	"\n" +
 	"FilesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

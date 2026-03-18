@@ -3,6 +3,9 @@ log-level: INFO
 websocket:
   port: 8001
 
+ip: 88.88.88.88
+is_external_ip: true
+
 explorer:
   period: 30s
 
@@ -14,4 +17,3 @@ explorer:
   broadcast:
     address: 255.255.255.255
     port: 8001
-

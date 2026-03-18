@@ -118,6 +118,7 @@ func (e *UDPExplorer) startReceive() {
 				continue
 			}
 			peer := pb.PbPeerToDomain(&msg)
+			// TODO: add check to ensure IP is a valid for this Peer
 			peer.IP = addr.IP
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {

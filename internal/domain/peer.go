@@ -7,9 +7,10 @@ import (
 )
 
 type Peer struct {
-	ID    uuid.UUID
-	Name  string
-	IP    net.IP
-	Port  int
-	Files map[string]string
+	ID         uuid.UUID
+	Name       string
+	IP         net.IP
+	IsPublicIP bool
+	Port       int
+	Files      map[string]string
 }

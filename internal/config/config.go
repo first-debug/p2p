@@ -5,6 +5,7 @@ package config
 import (
 	"flag"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ type Config struct {
 	LogLevel   slog.Level `yaml:"log-level"`
 	WebSocket  webSocket  `yaml:"websocket"`
 	Explorer   explorer   `yaml:"explorer"`
+	IP         *net.IP    `yaml:"ip,omitempty"`
+	IsPublicIP bool       `yaml:"is-public-ip"`
 	ConfigDir  string     `yaml:"-"`
 	HistoryDir string     `yaml:"-"`
 }

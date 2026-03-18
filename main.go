@@ -38,7 +38,11 @@ func main() {
 	}))
 
 	selfInfo = domain.Peer{
-		Port: cfg.WebSocket.Port,
+		IsPublicIP: cfg.IsPublicIP,
+		Port:       cfg.WebSocket.Port,
+	}
+	if cfg.IP != nil {
+		selfInfo.IP = *cfg.IP
 	}
 
 	idFile := cfg.ConfigDir + "id"
