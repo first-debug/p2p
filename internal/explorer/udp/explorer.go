@@ -111,18 +111,16 @@ func (e *UDPExplorer) startReceive() {
 				continue
 			}
 
-			var msg pb.Peer
-			err = proto.Unmarshal(data[:n], &msg)
+			peer, err := e.parseDomainPeer(n, data)
 			if err != nil {
-				e.logger.Error("cannot unmarshal UDP request", slog.String("error", err.Error()))
+				e.logger.Error("cannot parse Peer from UDP request", slog.String("error", err.Error()))
 				continue
 			}
-			peer := pb.PbPeerToDomain(&msg)
 			// TODO: add check to ensure IP is a valid for this Peer
 			peer.IP = addr.IP
 			err = e.peerStorage.Add(peer)
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
-				e.logger.Error("Cannot add new peer", slog.String("error", err.Error()))
+				e.logger.Error("cannot add new peer", slog.String("error", err.Error()))
 			}
 		}
 	}
@@ -230,4 +228,14 @@ func getMainInterface() (*net.Interface, error) {
 		}
 	}
 	return nil, errors.New("cannot found interface")
+}
+
+func (e *UDPExplorer) parseDomainPeer(n int, data []byte) (domain.Peer, error) {
+	var msg pb.Peer
+	err := proto.Unmarshal(data[:n], &msg)
+	if err != nil {
+		return domain.Peer{}, err
+	}
+
+	return pb.PbPeerToDomain(&msg), nil
 }
