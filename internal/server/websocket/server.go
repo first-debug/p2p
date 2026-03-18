@@ -10,11 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/first-debug/p2p/internal/server"
 	session "github.com/first-debug/p2p/internal/session/websocket"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
 	sessionstorage "github.com/first-debug/p2p/internal/storage/session"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/coder/websocket"
 )
@@ -66,6 +68,9 @@ func NewWebSocketServer(log *slog.Logger, port int, sessionsStorage sessionstora
 	})
 	s.serveMux.HandleFunc("/ws",
 		s.stopingMiddleware(s.messageHandle),
+	)
+	s.serveMux.HandleFunc("/peers",
+		s.stopingMiddleware(s.peersHandle),
 	)
 	s.isStopping.Store(false)
 	return s
@@ -126,5 +131,55 @@ func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) 
 	newS := session.NewWebSocketSession(s.logger, c, &peer, true, time.Now())
 	if err = s.sessionsStorage.Add(newS); err != nil {
 		s.logger.Error("cannot save new Session", slog.String("error", err.Error()))
+	}
+}
+
+func (s *WebSocketServer) peersHandle(w http.ResponseWriter, r *http.Request) {
+	peerID, err := uuid.Parse(r.Header.Get("PeerID"))
+	if err != nil {
+		s.logger.Error("cannot extract PeerID from header", slog.String("error", err.Error()))
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	peer, err := s.peerStorage.GetByID(peerID)
+	if err != nil {
+		s.logger.Error("cannot found Peer in local list", slog.String("error", err.Error()))
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	peers, err := s.peerStorage.GetAll()
+	if err != nil {
+		s.logger.Error("cannot get peers list", slog.Any("error", err.Error()))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	pbPeers := &pb.KnownPeers{
+		Peers: make([]*pb.Peer, 0),
+	}
+
+	for _, v := range peers {
+		if peer.ID == v.ID {
+			continue
+		}
+		pbPeers.Peers = append(pbPeers.Peers, pb.DomainToPbPeer(&v))
+	}
+
+	data, err := proto.Marshal(pbPeers)
+	if err != nil {
+		s.logger.Error("cannot marshal peers list", slog.Any("error", err.Error()))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	n, err := w.Write(data)
+	if err != nil {
+		s.logger.Error("cannot write peer list", slog.Any("error", err.Error()))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if n != len(data) {
+		s.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(data)), slog.Int("written len", n))
 	}
 }

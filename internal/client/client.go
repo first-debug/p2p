@@ -9,4 +9,5 @@ import (
 
 type Client interface {
 	Connect(context.Context, *domain.Peer) (session.Session, error)
+	GetKnownPeers(context.Context, *domain.Peer) ([]domain.Peer, error)
 }

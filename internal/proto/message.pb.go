@@ -152,7 +152,7 @@ func (x *Peer) GetIsPublicIp() bool {
 
 type KnownPeers struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	KnownPeers    []*Peer                `protobuf:"bytes,1,rep,name=known_peers,json=knownPeers,proto3" json:"known_peers,omitempty"`
+	Peers         []*Peer                `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,9 +187,9 @@ func (*KnownPeers) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *KnownPeers) GetKnownPeers() []*Peer {
+func (x *KnownPeers) GetPeers() []*Peer {
 	if x != nil {
-		return x.KnownPeers
+		return x.Peers
 	}
 	return nil
 }
@@ -256,11 +256,10 @@ const file_message_proto_rawDesc = "" +
 	"\n" +
 	"FilesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\")\n" +
 	"\n" +
-	"KnownPeers\x12&\n" +
-	"\vknown_peers\x18\x01 \x03(\v2\x05.PeerR\n" +
-	"knownPeers\"\x1c\n" +
+	"KnownPeers\x12\x1b\n" +
+	"\x05peers\x18\x01 \x03(\v2\x05.PeerR\x05peers\"\x1c\n" +
 	"\x04UUID\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\fR\x05valueB\x06Z\x04./pbb\x06proto3"
 
@@ -289,7 +288,7 @@ var file_message_proto_depIdxs = []int32{
 	5, // 0: Message.send_time:type_name -> google.protobuf.Timestamp
 	3, // 1: Peer.ID:type_name -> UUID
 	4, // 2: Peer.files:type_name -> Peer.FilesEntry
-	1, // 3: KnownPeers.known_peers:type_name -> Peer
+	1, // 3: KnownPeers.peers:type_name -> Peer
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
