@@ -106,6 +106,36 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 	if n != len(data) {
 		e.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(data)), slog.Int("written len", n))
 	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	data = make([]byte, 1024)
+	for {
+		select {
+		case <-ticker.C:
+			return errors.New("cannot get answer from peer")
+		default:
+			n, ansAddr, err := sender.ReadFromUDP(data)
+			if err != nil {
+				return err
+			}
+			if !addr.IP.Equal(ansAddr.IP) {
+				continue
+			}
+
+			peer, err := e.parseDomainPeer(n, data)
+			if err != nil {
+				return err
+			}
+			peer.IP = addr.IP
+
+			err = e.peerStorage.Add(peer)
+			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
+				return err
+			}
+		}
+	}
 }
 
 func (e *UDPExplorer) Stop() {
