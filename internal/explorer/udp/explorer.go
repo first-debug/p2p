@@ -81,6 +81,33 @@ func (e *UDPExplorer) Emit() error {
 	return nil
 }
 
+func (e *UDPExplorer) TargetEmit(target string) error {
+	data, err := proto.Marshal(e.peerInfo)
+	if err != nil {
+		return err
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", target)
+	if err != nil {
+		return err
+	}
+
+	sender, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		return err
+	}
+	defer sender.Close()
+	sender.SetDeadline(time.Now().Add(300 * time.Millisecond))
+
+	n, err := sender.Write(data)
+	if err != nil {
+		return err
+	}
+	if n != len(data) {
+		e.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(data)), slog.Int("written len", n))
+	}
+}
+
 func (e *UDPExplorer) Stop() {
 	e.ctxCancel()
 	e.wg.Wait()
