@@ -39,7 +39,7 @@ func (m *CliManager) catchListSessions() {
 }
 
 func (m *CliManager) catchConnectCommand(input string) {
-	strs := strings.Split(input, " ")
+	strs := strings.Fields(input)
 	if len(strs) != 2 {
 		writeWarn(m.writer, "too many arguments for `connect` command.")
 		return
@@ -74,7 +74,7 @@ func (m *CliManager) catchConnectCommand(input string) {
 }
 
 func (m *CliManager) catchAttachCommand(input string) {
-	strs := strings.Split(input, " ")
+	strs := strings.Fields(input)
 	if len(strs) != 2 {
 		writeWarn(m.writer, "too many arguments for `attach` command.")
 		return

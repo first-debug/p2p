@@ -136,11 +136,11 @@ func (m *CliManager) Run() error {
 func (m *CliManager) handelMenu(input string) (err error) {
 	if input == "list peers" {
 		m.catchListPeers()
-	} else if strings.HasPrefix(input, "connect ") {
-		m.catchConnectCommand(input)
 	} else if input == "list sessions" {
 		m.catchListSessions()
-	} else if strings.HasPrefix(input, "attach ") {
+	} else if strings.HasPrefix(input, "connect") {
+		m.catchConnectCommand(input)
+	} else if strings.HasPrefix(input, "attach") {
 		m.catchAttachCommand(input)
 	} else if input == "exit" {
 		fmt.Fprintf(m.writer, "\r%s\n", colorizeText("exit", colorGreen))
