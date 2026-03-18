@@ -3,6 +3,7 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"log/slog"
 	"net"
@@ -69,7 +70,13 @@ func parseConfigFile(ConfigFile string, config *Config) error {
 	if err == nil {
 		defer file.Close()
 
-		return yaml.NewDecoder(file).Decode(config)
+		err = yaml.NewDecoder(file).Decode(config)
+		if err != nil {
+			return err
+		}
+		if config.Explorer.Multicast == nil && config.Explorer.Broadcast == nil {
+			return errors.New("either a multicast or a broadcast must be set")
+		}
 	}
 
 	if os.IsNotExist(err) {
@@ -86,6 +93,7 @@ func parseConfigFile(ConfigFile string, config *Config) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
