@@ -8,3 +8,4 @@ test/data/
 *config.yaml
 *config.yml
 !template-config.yaml
+note.md

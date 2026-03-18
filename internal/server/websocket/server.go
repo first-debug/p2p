@@ -64,7 +64,9 @@ func NewWebSocketServer(log *slog.Logger, port int, sessionsStorage sessionstora
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	s.serveMux.HandleFunc("/ws", s.messageHandle)
+	s.serveMux.HandleFunc("/ws",
+		s.stopingMiddleware(s.messageHandle),
+	)
 	s.isStopping.Store(false)
 	return s
 }
@@ -103,16 +105,10 @@ func (s *WebSocketServer) Stop(ctx context.Context) {
 }
 
 func (s *WebSocketServer) messageHandle(w http.ResponseWriter, r *http.Request) {
-	if s.isStopping.Load() {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		if _, err := w.Write([]byte("server is stopping")); err != nil {
-			s.logger.Error("cannot emit about server status", slog.String("error", err.Error()))
-		}
-		return
-	}
 	peerID, err := uuid.Parse(r.Header.Get("PeerID"))
 	if err != nil {
 		s.logger.Error("cannot extract PeerID from header", slog.String("error", err.Error()))
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	peer, err := s.peerStorage.GetByID(peerID)
