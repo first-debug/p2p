@@ -155,3 +155,14 @@ func (m *CliManager) catchLoadPeersCommand(input string) {
 		m.pStorage.Add(p)
 	}
 }
+
+func (m *CliManager) catchEmitCommand(input string) {
+	strs := strings.Fields(input)
+	if len(strs) == 1 {
+		if err := m.explorer.Emit(); err != nil {
+			writeError(m.writer, err)
+		}
+	} else {
+		writeWarn(m.writer, "too many arguments for `emit` command.")
+	}
+}

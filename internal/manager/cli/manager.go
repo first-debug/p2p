@@ -10,6 +10,7 @@ import (
 
 	client "github.com/first-debug/p2p/internal/client"
 	"github.com/first-debug/p2p/internal/domain"
+	"github.com/first-debug/p2p/internal/explorer"
 	"github.com/first-debug/p2p/internal/manager"
 	pb "github.com/first-debug/p2p/internal/proto"
 	peerstorage "github.com/first-debug/p2p/internal/storage/peer"
@@ -52,6 +53,7 @@ type CliManager struct {
 	selfInfo domain.Peer
 	pStorage peerstorage.PeerStorage
 	sStorage sessionstorage.SessionStorage
+	explorer explorer.Explorer
 	client   client.Client
 
 	rl               *readline.Instance
@@ -64,13 +66,14 @@ type CliManager struct {
 	historyDir       string
 }
 
-func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, c client.Client, historyDir string) manager.Manager {
+func NewCliManager(ctx context.Context, log *slog.Logger, peer domain.Peer, p peerstorage.PeerStorage, s sessionstorage.SessionStorage, e explorer.Explorer, c client.Client, historyDir string) manager.Manager {
 	return &CliManager{
 		ctx:      ctx,
 		logger:   log,
 		selfInfo: peer,
 		pStorage: p,
 		sStorage: s,
+		explorer: e,
 		client:   c,
 
 		currentMode: menu,
@@ -144,6 +147,8 @@ func (m *CliManager) handelMenu(input string) (err error) {
 		m.catchAttachCommand(input)
 	} else if strings.HasPrefix(input, "load-peers") {
 		m.catchLoadPeersCommand(input)
+	} else if strings.HasPrefix(input, "emit") {
+		m.catchEmitCommand(input)
 	} else if input == "exit" {
 		fmt.Fprintf(m.writer, "\r%s\n", colorizeText("exit", colorGreen))
 		return &readline.InterruptError{}
