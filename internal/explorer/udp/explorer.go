@@ -28,9 +28,9 @@ type UDPExplorer struct {
 	ctxCancel context.CancelFunc
 	wg        sync.WaitGroup
 
-	sender   *net.UDPConn
-	listener *net.UDPConn
-	peerInfo *pb.Peer
+	sender            *net.UDPConn
+	listener          *net.UDPConn
+	marshaledPeerInfo []byte
 
 	peerStorage peerstorage.PeerStorage
 }
@@ -42,13 +42,18 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 		logger:      log.With("module", "UDPExplorer"),
 		ctx:         ctx,
 		ctxCancel:   cancel,
-		peerInfo:    pb.DomainToPbPeer(&peerInfo),
 		peerStorage: peerStorage,
 	}
 
+	data, err := proto.Marshal(pb.DomainToPbPeer(&peerInfo))
+	if err != nil {
+		return e, err
+	}
+
+	e.marshaledPeerInfo = data
+
 	e.logger.Info("starting UDP Explorer...")
 
-	var err error
 	if cfg.Explorer.Multicast != nil {
 		err = e.setMulticast(cfg)
 	}
@@ -70,11 +75,7 @@ func NewUDPExplorer(cfg *config.Config, log *slog.Logger, peerInfo domain.Peer, 
 }
 
 func (e *UDPExplorer) Emit() error {
-	data, err := proto.Marshal(e.peerInfo)
-	if err != nil {
-		return err
-	}
-	_, err = e.sender.Write(data)
+	_, err := e.sender.Write(e.marshaledPeerInfo)
 	if err != nil {
 		return err
 	}
@@ -82,11 +83,6 @@ func (e *UDPExplorer) Emit() error {
 }
 
 func (e *UDPExplorer) TargetEmit(target string) error {
-	data, err := proto.Marshal(e.peerInfo)
-	if err != nil {
-		return err
-	}
-
 	addr, err := net.ResolveUDPAddr("udp", target)
 	if err != nil {
 		return err
@@ -99,18 +95,18 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 	defer sender.Close()
 	sender.SetDeadline(time.Now().Add(300 * time.Millisecond))
 
-	n, err := sender.Write(data)
+	n, err := sender.Write(e.marshaledPeerInfo)
 	if err != nil {
 		return err
 	}
-	if n != len(data) {
-		e.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(data)), slog.Int("written len", n))
+	if n != len(e.marshaledPeerInfo) {
+		e.logger.Warn("the length of the data and the written information are not equal", slog.Int("data len", len(e.marshaledPeerInfo)), slog.Int("written len", n))
 	}
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	data = make([]byte, 1024)
+	data := make([]byte, 1024)
 	for {
 		select {
 		case <-ticker.C:
@@ -187,12 +183,7 @@ func (e *UDPExplorer) startReceive() {
 				return
 			}
 
-			data, err = proto.Marshal(e.peerInfo)
-			if err != nil {
-				e.logger.Error("cannot marshal self info", slog.String("error", err.Error()))
-				return
-			}
-			if n, err := e.listener.WriteTo(data, addr); err != nil {
+			if n, err := e.listener.WriteTo(e.marshaledPeerInfo, addr); err != nil {
 				e.logger.Error("cannot answer to peer", slog.String("error", err.Error()))
 			} else {
 				e.logger.Error("answer to peer", slog.Int("bytes", n))

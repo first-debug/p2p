@@ -94,7 +94,6 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		s.Stop(ctx)
-
 		return
 	}
 
