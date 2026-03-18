@@ -159,11 +159,16 @@ func (e *UDPExplorer) setMulticast(cfg *config.Config) error {
 func (e *UDPExplorer) setBroadcast(cfg *config.Config) error {
 	e.logger.Info("try to use Braodcast UDP to explorer other peers")
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.Explorer.Broadcast.Address, cfg.Explorer.Broadcast.Port))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", cfg.Explorer.Broadcast.Port))
 	if err != nil {
 		return err
 	}
 	e.listener, err = net.ListenUDP("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	addr, err = net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%d", cfg.Explorer.Broadcast.Address, cfg.Explorer.Broadcast.Port))
 	if err != nil {
 		return err
 	}
