@@ -13,19 +13,7 @@ func (m *CliManager) catchListPeers() {
 	if err != nil {
 		writeError(m.writer, err)
 	} else {
-		peersLen := len(peers)
-		if peersLen == 0 {
-			writeWarn(m.writer, "Peers list is empty.")
-			return
-		}
-		for i, v := range peers {
-			fmt.Fprintf(m.writer, "\r%3d) ID: %s\n", i+1, v.ID)
-			fmt.Fprintf(m.writer, "\r%4s%sIP: %s\n", altTab, altTab, v.IP)
-			fmt.Fprintf(m.writer, "\r%4s%sPort: %d\n", altTab, altTab, v.Port)
-			if i != peersLen-1 {
-				fmt.Fprintln(m.writer)
-			}
-		}
+		writePeerList(m.writer, peers)
 	}
 }
 

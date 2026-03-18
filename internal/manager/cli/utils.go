@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/first-debug/p2p/internal/domain"
 	pb "github.com/first-debug/p2p/internal/proto"
 	"github.com/google/uuid"
 	"golang.org/x/term"
@@ -83,4 +84,20 @@ func writeError(writer io.Writer, err error) {
 
 func writeWarn(writer io.Writer, warn string) {
 	fmt.Fprintf(writer, "\r%s\n", colorizeText(warn, colorYellow))
+}
+
+func writePeerList(writer io.Writer, peers []domain.Peer) {
+	peersLen := len(peers)
+	if peersLen == 0 {
+		writeWarn(writer, "Peers list is empty.")
+		return
+	}
+	for i, v := range peers {
+		fmt.Fprintf(writer, "\r%3d) ID: %s\n", i+1, v.ID)
+		fmt.Fprintf(writer, "\r%4s%sIP: %s\n", altTab, altTab, v.IP)
+		fmt.Fprintf(writer, "\r%4s%sPort: %d\n", altTab, altTab, v.Port)
+		if i != peersLen-1 {
+			fmt.Fprintln(writer)
+		}
+	}
 }
