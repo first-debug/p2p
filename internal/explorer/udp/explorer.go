@@ -133,6 +133,7 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 			if err != nil && !errors.Is(err, storage.ErrAlreadyExists) {
 				return err
 			}
+			return nil
 		}
 	}
 }
