@@ -85,11 +85,13 @@ func (e *UDPExplorer) Emit() error {
 func (e *UDPExplorer) TargetEmit(target string) error {
 	addr, err := net.ResolveUDPAddr("udp", target)
 	if err != nil {
+		e.logger.Debug("cannot resolve UDP Address", "addr", target)
 		return err
 	}
 
 	sender, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
+		e.logger.Debug("cannot dial UDP Address", "addr", addr)
 		return err
 	}
 	defer sender.Close()
@@ -97,6 +99,7 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 
 	n, err := sender.Write(e.marshaledPeerInfo)
 	if err != nil {
+		e.logger.Debug("cannot write to UDP Address", "error", err)
 		return err
 	}
 	if n != len(e.marshaledPeerInfo) {
@@ -114,9 +117,11 @@ func (e *UDPExplorer) TargetEmit(target string) error {
 		default:
 			n, ansAddr, err := sender.ReadFromUDP(data)
 			if err != nil {
+				e.logger.Debug("cannot read from UDP Address", "error", err)
 				return err
 			}
 			if !addr.IP.Equal(ansAddr.IP) {
+				e.logger.Debug("catched request from other peer", "target addr", addr, "answer addr", ansAddr)
 				continue
 			}
 
@@ -187,7 +192,7 @@ func (e *UDPExplorer) startReceive() {
 			if n, err := e.listener.WriteTo(e.marshaledPeerInfo, addr); err != nil {
 				e.logger.Error("cannot answer to peer", slog.String("error", err.Error()))
 			} else {
-				e.logger.Error("answer to peer", slog.Int("bytes", n))
+				e.logger.Debug("answer to peer", slog.Int("bytes", n))
 			}
 		}
 	}
