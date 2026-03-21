@@ -86,6 +86,10 @@ func (c *WebSocketClient) GetKnownPeers(ctx context.Context, peer *domain.Peer) 
 		c.logger.Error("response Body is nil")
 		return nil, fmt.Errorf("response Body is nil")
 	}
+	if res.ContentLength <= 0 {
+		c.logger.Error("ContentLength is unknown")
+		return nil, fmt.Errorf("ContentLength is unknown")
+	}
 
 	data := make([]byte, res.ContentLength)
 
